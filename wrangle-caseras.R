@@ -2,7 +2,8 @@
 library(tidyverse)
 library(lubridate)
 library(splines)
-
+installed.packages("zoo")
+library(zoo)
 if(grepl("fermat|leo", Sys.info()["nodename"])){
   rda_path <- "/Users/michaelterrefortes/Documents/CovidProject"
 } else{
@@ -241,7 +242,7 @@ allTests <- rbind(all_tests_with_id, caseras)
 
 # Positive results per test type
 allTests %>% group_by(testType) %>% filter(result != "other") %>%
-  filter (date>make_date(2022,5,1)) %>%
+  filter (date>make_date(2022,1,1)) %>%
   summarize(pos = sum(result=="positive")) %>%
   ggplot(aes(testType, log2(pos))) +
   geom_col()
@@ -285,10 +286,10 @@ ggplot(data = newData) +
 
 # Comparison graph of positive rates per type test
 newData %>% group_by(date) %>%
-  filter (date>make_date(2022,5,1)) %>%
+  filter (date>make_date(2022,4,1)) %>%
   mutate(wday = wday(date)) %>%
-  ggplot(mapping = aes(x = date, y = pos/totalType, color = as.factor(wday))) +
-  geom_point() +
+  ggplot(mapping = aes(x = date, y = pos/n, color = as.factor(wday))) +
+  geom_point() + 
   facet_wrap(~ testType, nrow = 2) 
 
 allTests %>% group_by(date) %>%
@@ -298,11 +299,27 @@ allTests %>% group_by(date) %>%
   ggplot(aes(date, pos/n,  color = as.factor(wday))) +
   geom_point()
   
+allTests %>% group_by(date) %>%
+  filter (date>make_date(2022,5,1)) %>%
+  summarize(pos=sum(result=="positive"), n = n()) %>%
+  mutate(wday = wday(date)) %>%
+  ggplot(aes(date, pos/n,  color = as.factor(wday))) +
+  geom_point()
+
 
 deaths %>% group_by(date) %>%
   summarize(n=n()) %>%
   ggplot(aes(date,n)) +
   geom_point()
+
+
+n1 <- allTests %>% group_by(date) %>%
+  summarize(pos=sum(result=="positive"), n = n()) %>%
+  mutate(avg = pos/n)
+
+n2 <- zoo(n1$avg, n1$date)
+
+
 
 
 

@@ -84,8 +84,16 @@ alpha <- 0.05
 ## filter by date example: ?createdAtStartDate=2021-09-09T04:00:00Z&createdAtEndDate=2021-09-10T04:00:00Z
 cases_url <- "https://bioportal.salud.pr.gov/api/administration/reports/orders/basic"
 
-cases_url_molecular <-  paste0(cases_url,"?testType=Molecular&createdAtStartDate=2022-05-01T04:00:00Z&createdAtEndDate=2022-06-18T04:00:00Z")
-cases_url_antigens <- paste0(cases_url,"?testType=Antigens&createdAtStartDate=2022-05-01T04:00:00Z&createdAtEndDate=2022-06-18T04:00:00Z")
+cases_url_molecular <-  paste0(cases_url,"?testType=Molecular&createdAtStartDate=2022-05-01T04:00:00Z&createdAtEndDate=2022-06-21T04:00:00Z")
+cases_url_antigens <- paste0(cases_url,"?testType=Antigens&createdAtStartDate=2022-05-01T04:00:00Z&createdAtEndDate=2022-06-21T04:00:00Z")
+
+
+cases_url_molecular_March_April <-  paste0(cases_url,"?testType=Molecular&createdAtStartDate=2022-03-01T04:00:00Z&createdAtEndDate=2022-04-30T03:59:59Z")
+cases_url_antigens_March_April <- paste0(cases_url,"?testType=Antigens&createdAtStartDate=2022-03-01T04:00:00Z&createdAtEndDate=2022-04-30T03:59:59Z")
+
+cases_url_molecular_Jan_Feb <-  paste0(cases_url,"?testType=Molecular&createdAtStartDate=2022-01-01T04:00:00Z&createdAtEndDate=2022-02-28T03:59:59Z")
+cases_url_antigens_Jan_Feb <- paste0(cases_url,"?testType=Antigens&createdAtStartDate=2022-01-01T04:00:00Z&createdAtEndDate=2022-02-28T03:59:59Z")
+
 
 get_bioportal <- function(url){
   jsonlite::fromJSON(
@@ -135,8 +143,17 @@ message("Reading case data.")
 
 all_tests_with_id_molecular <- get_bioportal(cases_url_molecular)
 all_tests_with_id_antigens <- get_bioportal(cases_url_antigens)
-all_tests_with_id <- rbind(all_tests_with_id_molecular, all_tests_with_id_antigens)
-rm(all_tests_with_id_molecular, all_tests_with_id_antigens); gc(); gc()
+
+march_april_molecular <- get_bioportal(cases_url_molecular_March_April)
+march_april_antigens <- get_bioportal(cases_url_antigens_March_April)
+
+jan_feb_molecular <- get_bioportal(cases_url_molecular_Jan_Feb)
+jan_feb_antigens <- get_bioportal(cases_url_antigens_Jan_Feb)
+
+all_tests_with_id <- rbind(all_tests_with_id_molecular, all_tests_with_id_antigens, 
+                           march_april_molecular, march_april_antigens, jan_feb_antigens, jan_feb_molecular)
+rm(all_tests_with_id_molecular, all_tests_with_id_antigens, march_april_molecular, 
+   march_april_antigens, jan_feb_antigens, jan_feb_molecular); gc(); gc()
 
 message("Processing case data.")
 
@@ -184,7 +201,7 @@ if(FALSE){
     arrange(date, reportedDate)
 }
 
-
+write.csv(all_tests_with_id,"/Users/michaelterrefortes/Documents/CovidProject/lab_test.csv", row.names = FALSE)
 
 all_tests_with_id %>% group_by(date) %>%
   filter (year(date)>=2022) %>%
