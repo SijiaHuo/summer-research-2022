@@ -5,7 +5,6 @@ library(lubridate)
 library(splines)
 library(zoo)
 
-theme_set(theme_bw(16))
 # initializations
 
 cases_url <- "https://bioportal.salud.pr.gov/api/administration/reports/orders/basic"
@@ -22,48 +21,18 @@ get_bioportal <- function(url){
   )
 }
 
-cases_url_molecular <-  paste0(cases_url,"?testType=Molecular&createdAtStartDate=2022-05-01T04:00:00Z&createdAtEndDate=2022-06-17T04:00:00Z")
-cases_url_antigens <- paste0(cases_url,"?testType=Antigens&createdAtStartDate=2022-05-01T04:00:00Z&createdAtEndDate=2022-06-17T04:00:00Z")
+molecular_tab <- get_bioportal(paste0(cases_url,"?testType=Molecular&createdAtStartDate=2022-05-01T04:00:00Z&createdAtEndDate=2022-06-17T04:00:00Z"))
+antigen_tab <- get_bioportal(paste0(cases_url,"?testType=Antigens&createdAtStartDate=2022-05-01T04:00:00Z&createdAtEndDate=2022-06-17T04:00:00Z"))
+allTests <- rbind(molecular_tab, antigen_tab)
 
-molecular_tab <- get_bioportal(cases_url_molecular)
-antigen_tab <- get_bioportal(cases_url_antigens)
-#allTests <- rbind(molecular_tab, antigen_tab)
-
-caseras_url_antigens <-  paste0(caseras_url,"?testType=AntigensSelfTest")
-caseras_url_molecular <- paste0(caseras_url,"?testType=MolecularSelfTest")
 test_types <- c("MolecularSelfTest", "AntigensSelfTest")
 
-caseras_molecular <- get_bioportal(caseras_url_molecular)
-caseras_antigens <- get_bioportal(caseras_url_antigens)
-caseras <- rbind(caseras_molecular, caseras_antigens)
-rm(caseras_molecular, caseras_antigens); gc(); gc()
+caseras_molecular <- get_bioportal(paste0(cases_url,"?testType=MolecularSelfTest"))
+caseras_antigens <- get_bioportal(paste0(cases_url,"?testType=AntigensSelfTest"))
 
-plot_graph <- function(caseras, testType){
-  data = NULL
-  
-  if (caseras == TRUE) {
-    if (testType == 'Molecular') {
-      data = caseras_molecular_tab
-    } 
-    else if (testType == 'Antigen') {
-      data = caseras_antigen_tab
-    } 
-    else if (testType == 'All') {
-      data = rbind(caseras_molecular_tab, caseras_antigens_tab)
-    }
-  } else {
-    if (testType == 'Molecular') {
-      data = molecular_tab
-    } 
-    else if (testType == 'Antigen') {
-      data = antigen_tab
-    } 
-    else if (testType == 'All') {
-      data = rbind(molecular_tab, antigen_tab)
-    }
-  }
-  
-  data <- data %>%  
+
+plot_graph <- function(requestedData){
+  requestedData <- requestedData %>%  
     as_tibble() %>%
     mutate(collectedDate = ymd_hms(collectedDate, tz = "America/Puerto_Rico"),
            reportedDate = ymd_hms(reportedDate, tz = "America/Puerto_Rico"),
@@ -88,7 +57,7 @@ plot_graph <- function(caseras, testType){
     arrange(reportedDate, collectedDate, patientId) 
   
   ## fixing bad dates
-  data <- data %>% 
+  requestedData <- requestedData %>% 
     mutate(date = if_else(collectedDate > reportedDate, reportedDate, collectedDate)) %>% ## if collectedDate is in the future make it reportedDate
     mutate(date = if_else(is.na(collectedDate), reportedDate - days(imputation_delay),  collectedDate)) %>%
     mutate(date = if_else(!year(date) %in% the_years, reportedDate - days(imputation_delay),  date)) %>%  
@@ -96,15 +65,8 @@ plot_graph <- function(caseras, testType){
     filter(year(date) %in% the_years & date <= today()) %>%
     arrange(date, reportedDate)
   
-  if (testType == 'Molecular') {
-    filter(data, testType == 'Molecular')
-  }
-  else if (testType == 'Antigen') {
-    filter(data, testType == 'Antigen')
-  }
-  
-  data %>% group_by(date) %>% filter(result != "other") %>%
-    #filter(testType=="Molecular") %>%
+  requestedData %>% group_by(date) %>% filter(result != "other") %>%
+    filter(testType!="Molecular") %>%
     filter(date>=first_day) %>%
     summarize(n = n(), positive = sum(result=="positive")) %>%
     mutate(wday = wday(date)) %>%
@@ -131,15 +93,19 @@ plot_graph <- function(caseras, testType){
     mutate(ageRange = age_levels[as.numeric(cut(age_start, c(age_starts, Inf), right = FALSE))]) %>%
     mutate(ageRange = factor(ageRange, levels = age_levels)) 
   
-  t1 <- data %>% group_by(date) %>%
-    filter(date>=make_date(2022,5,1)) %>%
+  t1 <- requestedData %>% group_by(date) %>%
+    filter(date >= first_day) %>%
     summarize(pos = sum(result == 'positive', n = n()))
   
-  t1 %>%
+  d1 <- t1 %>%
     mutate(seven_day_avg = rollmean(t1$pos, 7, align = 'left', fill = 0)) %>%
     ggplot(aes(date, seven_day_avg)) + 
     geom_col(fill="blue") +
     geom_line(aes(y = seven_day_avg), color = "blue", size = .7)
+  
+  print(d1)
+  
+  message('Plotted graph')
 }
 
-plot_graph(caseras=FALSE, 'molecular')
+plot_graph(molecular_tab)
