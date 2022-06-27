@@ -155,4 +155,16 @@ tabAvg %>% filter(date>=make_date(2021,12,1)) %>%
   geom_smooth(method='lm', formula= y~x)
 
 
+## Binomial
+
+binaryData <- as.integer(as.data.frame(caseras_url_antigens)$result == "Positive")
+
+positive_cases <- nrow(caseras_url_antigens[caseras_url_antigens$result=='Positive',])
+n <- nrow(caseras_url_antigens)
+
+probability <- positive_cases / n
+
+y<-rbinom(10e6, n, probability) / n
+hist(y, xlim=c(0.25, 0.27))
+
 
