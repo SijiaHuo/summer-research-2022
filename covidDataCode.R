@@ -3,6 +3,8 @@ library(lubridate)
 library(splines)
 installed.packages("zoo")
 library(zoo)
+library(lubridate) 
+library(forecast) 
 # initializations
 
 cases_url <- "https://bioportal.salud.pr.gov/api/administration/reports/orders/basic"
@@ -99,6 +101,15 @@ tab %>% group_by(testType, date) %>%
   geom_point() +
   facet_wrap(~ testType, nrow = 2) 
 
+
+tab %>% group_by(testType, date) %>%
+  filter(date>=make_date(2021,12,1)) %>%
+  summarize(n=n(), pos = sum(result=="positive")) %>%
+  mutate(wday = wday(date)) %>%
+  ggplot(aes(date, pos/n, color = testType)) +
+  geom_point() +
+  geom_smooth()
+
 httr::set_config(httr::config(ssl_verifypeer = 0L, ssl_verifyhost = 0L))
 url <- "https://covid19datos.salud.gov.pr/estadisticas_v2/download/data/sistemas_salud/completo"
 hosp <- read.csv(text = rawToChar(httr::content(httr::GET(url)))) %>% 
@@ -119,18 +130,19 @@ deaths <-  read.csv(text = rawToChar(httr::content(httr::GET(url)))) %>%
   mutate(ageRange = age_levels[as.numeric(cut(age_start, c(age_starts, Inf), right = FALSE))]) %>%
   mutate(ageRange = factor(ageRange, levels = age_levels)) 
 
-
+# Rollmean graph
 tab %>% group_by(testType) %>%
   group_by(testType, date) %>%
   filter(date>=make_date(2021,12,1)) %>%
   summarize(pos = sum(result == 'positive'), n = n()) %>%
-  mutate(seven_day_avg = rollmean(pos/n, 7, align = 'left', fill = 0)) %>%
-  ggplot() + 
-  geom_col(aes(date, seven_day_avg), fill="blue") +
-  geom_line(aes(date, y = seven_day_avg), color = "blue", size = .7) +
+  mutate(seven_day_avg = rollmean(pos/n, 7, align = 'right', fill = 0)) %>%
+  ggplot(aes(date, y = seven_day_avg)) + 
+  geom_line(color = "blue", size = .7) +
+  geom_point() +
   facet_wrap(~ testType)
 
-tab3 <- tab %>% group_by(date, testType) %>% filter(testType == "Molecular") %>% 
+tab3 <- tab %>% group_by(date, testType) %>% filter(testType == "Molecular") %>%
+  filter(date>=make_date(2021,12,1)) %>%
   summarize(pos = sum(result == "positive"), n =n())
 
 tab4 <- tab %>% group_by(date, testType) %>% filter(testType != "Molecular") %>% 
@@ -152,19 +164,97 @@ rm(tab5, tab6)
 tabAvg %>% filter(date>=make_date(2021,12,1)) %>% 
   ggplot(aes(x = avgM, y = avgA)) + 
   geom_point() +
-  geom_smooth(method='lm', formula= y~x)
+  geom_smooth(method='lm', formula= y~x) 
 
 
 ## Binomial
+pr_pop <- 3285874
 
-binaryData <- as.integer(as.data.frame(caseras_url_antigens)$result == "Positive")
+y1 = tab %>% filter(testType!="Molecular")
 
-positive_cases <- nrow(caseras_url_antigens[caseras_url_antigens$result=='Positive',])
-n <- nrow(caseras_url_antigens)
+binaryData <- as.integer(as.data.frame(y1)$result == "positive")
+
+positive_cases <- nrow(y1[y1$result=='positive',])
+n <- nrow(y1)
 
 probability <- positive_cases / n
 
-y<-rbinom(10e6, n, probability) / n
-hist(y, xlim=c(0.25, 0.27))
+y<-rbinom(positive_cases, n, probability) / n
+hist(y)
+
+ggplot(data=y) +
+  geom_histogram(aes(x=y))
+
+
+tab %>% group_by(date, testType) %>%  filter(date>=make_date(2021,12,1)) %>%
+  summarize(pos=sum(result=="positive"), n=n()) %>%
+  ggplot(mapping = aes(x = testType, y = pos/n)) +
+  geom_violin() +
+  geom_boxplot(width = 0.1) 
+ 
+
+
+n1 <- tab %>% group_by(date, testType) %>% filter(date>=make_date(2021,12,1)) %>%
+  summarize(pos=sum(result=="positive"), n=n()) 
+
+v = n1$pos[n1$testType=="Molecular"]/n1$n[n1$testType=="Molecular"]
+v1 = n1$pos[n1$testType!="Molecular"]/n1$n[n1$testType!="Molecular"]
+
+sd(v)
+sd(v1)
+
+var(v)
+var(v1)
+
+se <- function(x) sqrt(var(x) / length(x))
+
+e1 = se(v)
+e2 = se(v1)
+
+# tt = tab %>% group_by(date) %>% filter(testType == "Molecular") %>%
+#   filter(date>=make_date(2021,12,1)) %>%
+#   summarize(n=n(), pos = sum(result=="positive"))
+# 
+# t1 = tab %>% group_by(date) %>% filter(testType != "Molecular") %>%
+#   filter(date>=make_date(2021,12,1)) %>%
+#   summarize(n=n(), pos = sum(result=="positive"))
+
+# ?geom_ribbon
+# 
+# # Generate data
+# huron <- data.frame(year = 1875:1972, level = as.vector(LakeHuron))
+# h <- ggplot(t1, aes(date))
+# 
+# h + geom_ribbon(aes(ymin=0, ymax=pos/n))
+# h + geom_area(aes(y = pos/n))
+# 
+# # Orientation cannot be deduced by mapping, so must be given explicitly for
+# # flipped orientation
+# h + geom_area(aes(x = pos/n, y = date), orientation = "y")
+# 
+# # Add aesthetic mappings
+# h +
+#   geom_ribbon(aes(ymin = pos/n - e2, ymax = pos/n + e2), fill = "grey70") +
+#   geom_line(aes(y = pos/n))
+
+summary(tab5)
+
+tests = tab %>% group_by(date, testType) %>%
+  filter(date>=make_date(2021,12,1)) %>%
+  summarize(total=n(), pos = sum(result=="positive"), neg=sum(result=="negative"))
+
+var(tests$pos[tests$testType=="Molecular"])
+var(tests$pos[tests$testType!="Molecular"])
+
+se(tests$pos[tests$testType=="Molecular"])
+se(tests$pos[tests$testType!="Molecular"])
+
+tab[tab$result=='positive',]
+
+h = dnorm(v, mean(v), sd(v))
+
+plot(v,h)
+
+
 
 
