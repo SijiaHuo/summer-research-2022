@@ -166,7 +166,7 @@ tabAvg %>% filter(date>=make_date(2021,12,1)) %>%
   geom_point() +
   geom_smooth(method='lm', formula= y~x) 
 
-
+#GLM
 
 model = glm(cbind(pos, n-pos) ~ tab4$pos, data = tab4, family=binomial)
 probabilities <- predict(model, type = "response")
