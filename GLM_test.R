@@ -187,5 +187,4 @@ mydata <- mydata %>%
 
 ggplot(mydata , aes(logit, predictor.value))+
   geom_point(size = 0.3, alpha = 0.5) +
-  geom_smooth(method = "loess") + 
-  facet_wrap()
+  geom_smooth(method = "loess")
