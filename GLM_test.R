@@ -153,7 +153,7 @@ tab5 = tab3 %>% group_by(date) %>%
   summarize(avgM = pos / n)
 
 tab6 = tab4 %>% group_by(date) %>%
-  summarize(avgA = pos / n)
+  mutate(avgA = pos / n)
 
 rm(tab3, tab4)
 
@@ -166,25 +166,53 @@ tabAvg %>% filter(date>=make_date(2021,12,1)) %>%
   geom_point() +
   geom_smooth(method='lm', formula= y~x) 
 
-#GLM
 
-model = glm(cbind(pos, n-pos) ~ tab4$pos, data = tab4, family=binomial)
-probabilities <- predict(model, type = "response")
 
-conf_int <- confint(model)
 
+
+probabilities <- predict(model1, type = "response")
 plot(probabilities)
 
-mydata <- tab4 %>%
+mydata <- test %>%
   dplyr::select_if(is.numeric)
 
-predictors <- colnames(mydata)
-
 mydata <- mydata %>%
-  ungroup()%>%
-  mutate(logit = log(probabilities / (1-probabilities))) %>%
+  ungroup() %>%
+  mutate(logit = log(probabilities / (1 - probabilities))) %>%
   gather(key = "predictors", value = "predictor.value", -logit)
 
-ggplot(mydata , aes(logit, predictor.value))+
-  geom_point(size = 0.3, alpha = 0.5) +
+ggplot(mydata, aes(predictor.value, logit)) +
+  geom_point(size = 0.5, alpha = 0.5) +
+  geom_smooth(method = "loess")
+
+
+split1<- sample(c(rep(0, 0.7 * nrow(tab6)), rep(1, 0.3 * nrow(tab6))))
+table(split1) 
+
+train <- tab6[split1, ]
+test <- tab6[-split1, ]
+
+#total molecular test - molecular positive
+
+model1 <- glm(cbind(pos, n-pos) ~ pos, family = "binomial", data = test)
+
+preddata <- with(tab6, data.frame(x = seq(min(pos), max(pos), length = 50)))
+preds <- predict(model1, type = "link", se.fit = TRUE)
+
+critval <- 1.96 ## approx 95% CI
+upr <- preds$fit + (critval * preds$se.fit)
+lwr <- preds$fit - (critval * preds$se.fit)
+fit <- preds$fit
+
+fit2 <- model1$family$linkinv(fit)
+upr2 <- model1$family$linkinv(upr)
+lwr2 <- model1$family$linkinv(lwr)
+
+preddata$lwr <- lwr2 
+preddata$upr <- upr2 
+
+tab6 %>% 
+  ggplot(aes(x=date,y=pos)) +
+  geom_ribbon(aes(ymin=pos-.2, ymax=pos+.2), size=.1, fill='gray') +
+  geom_point(size = 0.5, alpha = 0.5) +
   geom_smooth(method = "loess")
