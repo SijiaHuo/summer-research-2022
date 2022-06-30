@@ -232,25 +232,6 @@ tabAvg %>% filter(date>=make_date(2021,12,1)) %>%
   stat_cor(method = "pearson", label.x = 0.1, label.y = 0.75)
 
 
-
-## Binomial
-# pr_pop <- 3285874
-# 
-# y1 = tab %>% filter(testType=="Molecular")
-# 
-# binaryData <- as.integer(as.data.frame(y1)$result == "positive")
-# 
-# positive_cases <- nrow(y1[y1$result=='positive',])
-# n <- nrow(y1)
-# 
-# probability <- positive_cases / n
-# 
-# y <- rbinom(positive_cases, n, probability) / n
-# hist(y)
-# 
-# ggplot(data=y) +
-#   geom_histogram(aes(x=y))
-
 ## Binomial molecular
 
 posM = tab %>% filter(testType=="Molecular" & date>=make_date(2021,12,15)) 
@@ -296,13 +277,6 @@ tab %>% group_by(date, testType) %>%  filter(date>=make_date(2021,12,1)) %>%
   geom_boxplot(width = 0.1) 
  
 
-
-# n1 <- tab %>% group_by(date, testType) %>% filter(date>=make_date(2021,12,1)) %>%
-#   summarize(pos=sum(result=="positive"), n=n()) 
-# 
-# v = n1$pos[n1$testType=="Molecular"]/n1$n[n1$testType=="Molecular"]
-# v1 = n1$pos[n1$testType!="Molecular"]/n1$n[n1$testType!="Molecular"]
-
 # Standard deviation
 sd(binaryData1)
 sd(binaryData2)
@@ -313,38 +287,11 @@ var(binaryData1)
 var(binaryData2)
 
 # Function standard error
-se <- function(x) sqrt(var(x) / length(x))
+se <- function(x) sd(x) / sqrt(length(x))
 
 se(binaryData1)
 se(binaryData2)
 
-# tt = tab %>% group_by(date) %>% filter(testType == "Molecular") %>%
-#   filter(date>=make_date(2021,12,1)) %>%
-#   summarize(n=n(), pos = sum(result=="positive"))
-# 
-# t1 = tab %>% group_by(date) %>% filter(testType != "Molecular") %>%
-#   filter(date>=make_date(2021,12,1)) %>%
-#   summarize(n=n(), pos = sum(result=="positive"))
-
-# ?geom_ribbon
-# 
-# # Generate data
-# huron <- data.frame(year = 1875:1972, level = as.vector(LakeHuron))
-# h <- ggplot(t1, aes(date))
-# 
-# h + geom_ribbon(aes(ymin=0, ymax=pos/n))
-# h + geom_area(aes(y = pos/n))
-# 
-# # Orientation cannot be deduced by mapping, so must be given explicitly for
-# # flipped orientation
-# h + geom_area(aes(x = pos/n, y = date), orientation = "y")
-# 
-# # Add aesthetic mappings
-# h +
-#   geom_ribbon(aes(ymin = pos/n - e2, ymax = pos/n + e2), fill = "grey70") +
-#   geom_line(aes(y = pos/n))
-
-# summary(tab5)
 
 tests = tab %>% group_by(date, testType) %>%
   filter(date>=make_date(2021,12,1)) %>%
@@ -368,44 +315,52 @@ tab6 %>% group_by(date) %>%
 
 # Logistic regression model
 
-tabM = tab %>% group_by(date) %>% filter(date>=make_date(2021,12,15) & date<make_date(2022,6,27)) %>% 
-  filter(testType=="Molecular") %>% summarize(pos=sum(result=="positive"), n=n())
-tabA = tab %>% group_by(date) %>% filter(date>=make_date(2021,12,1) & date<make_date(2022,6,27)) %>% 
-  filter(testType!="Molecular") %>% summarize(pos=sum(result=="positive"), n=n())
+tabM = tab %>% group_by(date) %>% filter(date>=make_date(2021,12,15) & date<make_date(2022,6,23)) %>% 
+  filter(testType=="Molecular") %>% summarize(MolecularPos=sum(result=="positive"), MolecularTotal=n())
+tabA = tab %>% group_by(date) %>% filter(date>=make_date(2021,12,1) & date<make_date(2022,6,23)) %>% 
+  filter(testType!="Molecular") %>% summarize(HTPos=sum(result=="positive"), HTTotal=n())
 
 # tabM = select(tabM,pos,n)
 # tabA = select(tabA,pos,n)
 
 tabA = tabA %>% group_by(date) %>%
-  mutate(avgDaily = pos/n)
+  mutate(HTAvgDaily = HTPos/HTTotal)
 
-train_dataA = tabA %>% filter(date>=make_date(2021,12,15) & date<make_date(2022,3,22))
-train_dataM = tabM %>% filter(date>=make_date(2021,12,15) & date<make_date(2022,3,22))
+tabM = tabM %>% group_by(date) %>%
+  mutate(MolecularAvgDaily = MolecularPos/MolecularTotal)
 
-test_dataA = tabA %>% filter(date>=make_date(2022,3,22))
-test_dataM = tabM %>% filter(date>=make_date(2022,3,22))
-
-
-# split1<- sample(c(rep(0, 0.5 * nrow(tabA)), rep(1, 0.5 * nrow(tabA))))
-# split1
+# train_dataA = tabA %>% filter(date>=make_date(2021,12,15) & date<make_date(2022,3,22))
+# train_dataM = tabM %>% filter(date>=make_date(2021,12,15) & date<make_date(2022,3,22))
 # 
-# train_dataA <- tabA[split1 == 0, ] 
-# train_dataM <- tabM[split1 == 0, ] 
+# test_dataA = tabA %>% filter(date>=make_date(2022,3,22))
+# test_dataM = tabM %>% filter(date>=make_date(2022,3,22))
+
+MolecularAndHT = full_join(tabA,tabM)
+
+split1<- sample(c(rep(0, 0.5 * nrow(MolecularAndHT)), rep(1, 0.5 * nrow(MolecularAndHT))))
+split1
+
+# train_dataA <- tabA[split1 == 0, ]
+# train_dataM <- tabM[split1 == 0, ]
 # 
-# test_dataA <- tabA[split1 == 1, ] 
-# test_dataM <- tabM[split1 == 1, ] 
+# test_dataA <- tabA[split1 == 1, ]
+# test_dataM <- tabM[split1 == 1, ]
+
+train_data <- MolecularAndHT[split1 == 0, ]
+ 
+test_data <- MolecularAndHT[split1 == 1, ]
 
 # train_reg <- subset(tabA, split == "TRUE")
 # test_reg <- subset(tabM, split == "FALSE")
 
-model <- glm(cbind(pos, n-pos) ~ train_dataA$pos, data = train_dataM, 
+model <- glm(cbind(MolecularPos, MolecularTotal-MolecularPos) ~ HTAvgDaily, data = MolecularAndHT, 
 family = binomial)
 
 model
 
 summary(model)
 
-probabilities <- predict(model, full_join(test_dataA, test_dataM), type = "response")
+probabilities <- predict(model, test_data, type = "response")
 
 tabM %>% filter(date>=make_date(2021,12,1)) %>%
   ggplot(aes(date,pos/n)) +
@@ -413,8 +368,9 @@ tabM %>% filter(date>=make_date(2021,12,1)) %>%
 
 probabilities
 
-plot(probabilities) 
-plot(tabM$date, tabM$pos/tabM$n)
+plot(probabilities, ylim = c(0,0.5)) 
+plot(tabM$date, tabM$MolecularAvgDaily)
+plot(tabA$date, tabA$HTAvgDaily, ylim = c(0,0.5))
 
 # probabilities <- ifelse(probabilities >0.5, 1, 0)
 # 
@@ -459,7 +415,107 @@ tab %>% group_by(date) %>% filter(result!="Molecular") %>%
   summarize(pos = count(result=="positive"))
 
 
+test = tab3
+
+
+# Other prediction
+
+probabilities <- predict(model1, type = "response")
+plot(probabilities)
+
+mydata <- test %>%
+  dplyr::select_if(is.numeric)
+
+mydata <- mydata %>%
+  ungroup() %>%
+  mutate(logit = log(probabilities / (1 - probabilities))) %>%
+  gather(key = "predictors", value = "predictor.value", -logit)
+
+ggplot(mydata, aes(logit,predictor.value)) +
+  geom_point(size = 0.5, alpha = 0.5) +
+  geom_smooth(method = "loess")
+
+
+split1<- sample(c(rep(0, 0.7 * nrow(tab6)), rep(1, 0.3 * nrow(tab6))))
+table(split1) 
+
+train <- tab6[split1, ]
+test <- tab6[-split1, ]
+
+#total molecular test - molecular positive
+
+model1 <- glm(cbind(pos, n-pos) ~ pos, family = "binomial", data = test)
+
+preddata <- with(tab6, data.frame(x = seq(min(pos), max(pos), length = 50)))
+preds <- predict(model1, type = "link", se.fit = TRUE)
+
+critval <- 1.96 ## approx 95% CI
+upr <- preds$fit + (critval * preds$se.fit)
+lwr <- preds$fit - (critval * preds$se.fit)
+fit <- preds$fit
+
+fit2 <- model1$family$linkinv(fit)
+upr2 <- model1$family$linkinv(upr)
+lwr2 <- model1$family$linkinv(lwr)
+
+preddata$lwr <- lwr2 
+preddata$upr <- upr2 
+
+tab6 %>% 
+  ggplot(aes(x=date,y=pos)) +
+  geom_ribbon(aes(ymin=pos-.2, ymax=pos+.2), size=.1, fill='gray') +
+  geom_point(size = 0.5, alpha = 0.5) +
+  geom_smooth(method = "loess")
 
 
 
+
+
+# tt = tab %>% group_by(date) %>% filter(testType == "Molecular") %>%
+#   filter(date>=make_date(2021,12,1)) %>%
+#   summarize(n=n(), pos = sum(result=="positive"))
+# 
+# t1 = tab %>% group_by(date) %>% filter(testType != "Molecular") %>%
+#   filter(date>=make_date(2021,12,1)) %>%
+#   summarize(n=n(), pos = sum(result=="positive"))
+
+# ?geom_ribbon
+# 
+# # Generate data
+# huron <- data.frame(year = 1875:1972, level = as.vector(LakeHuron))
+# h <- ggplot(t1, aes(date))
+# 
+# h + geom_ribbon(aes(ymin=0, ymax=pos/n))
+# h + geom_area(aes(y = pos/n))
+# 
+# # Orientation cannot be deduced by mapping, so must be given explicitly for
+# # flipped orientation
+# h + geom_area(aes(x = pos/n, y = date), orientation = "y")
+# 
+# # Add aesthetic mappings
+# h +
+#   geom_ribbon(aes(ymin = pos/n - e2, ymax = pos/n + e2), fill = "grey70") +
+#   geom_line(aes(y = pos/n))
+
+# summary(tab5)
+
+
+
+## Binomial
+# pr_pop <- 3285874
+# 
+# y1 = tab %>% filter(testType=="Molecular")
+# 
+# binaryData <- as.integer(as.data.frame(y1)$result == "positive")
+# 
+# positive_cases <- nrow(y1[y1$result=='positive',])
+# n <- nrow(y1)
+# 
+# probability <- positive_cases / n
+# 
+# y <- rbinom(positive_cases, n, probability) / n
+# hist(y)
+# 
+# ggplot(data=y) +
+#   geom_histogram(aes(x=y))
 
