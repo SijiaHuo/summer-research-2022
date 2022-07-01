@@ -171,6 +171,21 @@ tab %>% group_by(week = round_date(date, unit="week")) %>%
   ylab("Numero de pruebas caseras reportadas por semana") +
   xlab("Fecha")
 
+
+tab %>% group_by(testType, week = round_date(date, unit="week")) %>% 
+  filter(date>=make_date(2021,12,15)) %>%
+  summarize(n=n(), pos = sum(result=="positive")) %>%
+  #mutate(wday = wday(date)) %>%
+  ggplot(aes(week, pos/n)) +
+  geom_point() +
+  geom_smooth() +
+  facet_wrap(~ testType, nrow = 2) 
+
+weekData = tab %>% group_by(testType, week = round_date(date, unit="week")) %>% 
+  filter(date>=make_date(2021,12,15)) %>%
+  summarize(n=n(), pos = sum(result=="positive"))
+
+
 httr::set_config(httr::config(ssl_verifypeer = 0L, ssl_verifyhost = 0L))
 url <- "https://covid19datos.salud.gov.pr/estadisticas_v2/download/data/sistemas_salud/completo"
 hosp <- read.csv(text = rawToChar(httr::content(httr::GET(url)))) %>% 
@@ -196,8 +211,8 @@ tab %>% group_by(testType) %>%
   group_by(testType, date) %>%
   filter(date>=make_date(2021,12,1)) %>%
   summarize(pos = sum(result == 'positive'), n = n()) %>%
-  mutate(seven_day_avg = rollmean(pos/n, 7, align = 'left', fill = 0)) %>%
-  ggplot(aes(date, y = seven_day_avg)) + 
+  mutate(seven_day_avg = rollmean(pos/n, 7, align = 'right', fill = 0)) %>%
+  ggplot(aes(date, y = seven_day_avg)) +
   geom_line(color = "blue", size = .7) +
   geom_point() +
   facet_wrap(~ testType)
@@ -313,14 +328,15 @@ tab6 %>% group_by(date) %>%
   ggplot(aes(date, avgP)) +
   geom_point()
 
-# Logistic regression model
+# Logistic regression model daily
 
-tabM = tab %>% group_by(date) %>% filter(date>=make_date(2021,12,15) & date<make_date(2022,6,23)) %>% 
+tabM = tab %>% group_by(date) %>% filter(date>=make_date(2021,12,15) & date<make_date(2022,6,23)) %>%
   filter(testType=="Molecular") %>% summarize(MolecularPos=sum(result=="positive"), MolecularTotal=n())
-tabA = tab %>% group_by(date) %>% filter(date>=make_date(2021,12,1) & date<make_date(2022,6,23)) %>% 
+tabA = tab %>% group_by(date) %>% filter(date>=make_date(2021,12,1) & date<make_date(2022,6,23)) %>%
   filter(testType!="Molecular") %>% summarize(HTPos=sum(result=="positive"), HTTotal=n())
 
-# tabM = select(tabM,pos,n)
+
+# tabM = select(tabM,date,pos,n,avg)
 # tabA = select(tabA,pos,n)
 
 tabA = tabA %>% group_by(date) %>%
@@ -353,24 +369,166 @@ test_data <- MolecularAndHT[split1 == 1, ]
 # train_reg <- subset(tabA, split == "TRUE")
 # test_reg <- subset(tabM, split == "FALSE")
 
-model <- glm(cbind(MolecularPos, MolecularTotal-MolecularPos) ~ HTAvgDaily, data = MolecularAndHT, 
-family = binomial)
+model <- glm(cbind(MolecularPos, MolecularTotal-MolecularPos) ~ HTAvgDaily
+             , data = MolecularAndHT, family = binomial(link = "log"))
+# 
+# model <- glm(cbind(HTPos, HTTotal - HTPos) ~ MolecularAvgDaily
+#              , data = MolecularAndHT, family = binomial(link = "log"))
+
 
 model
-
+conf_int <- confint(model)
 summary(model)
 
-probabilities <- predict(model, test_data, type = "response")
+test_data2 = select(test_data, date, HTPos, HTTotal, HTAvgDaily)
+
+probabilities <- predict(model, test_data, type = "response", se.fit = TRUE)
 
 tabM %>% filter(date>=make_date(2021,12,1)) %>%
   ggplot(aes(date,pos/n)) +
   geom_point()
 
+test_data$fit = probabilities$fit
+test_data$se = probabilities$se.fit
+
+probabilities
+probabilities <- unname(probabilities)
 probabilities
 
-plot(probabilities, ylim = c(0,0.5)) 
-plot(tabM$date, tabM$MolecularAvgDaily)
-plot(tabA$date, tabA$HTAvgDaily, ylim = c(0,0.5))
+ggplot(MolecularAndHT, aes(x = date, y = MolecularAndHT$MolecularAvgDaily)) +
+  geom_point(position = position_jitter(width = 0.05, height = 0.05)) +
+  geom_ribbon(data = test_data, aes(y = fit, ymin = fit - 1.96 * se, ymax = fit + 1.96 * se),
+              fill = "blue", alpha = 0.3) +
+  geom_line(data = test_data, aes(y = fit)) 
+
+
+
+plot(test_data$date, probabilities, ylim = c(0,0.5)) 
+plot(tabA$date, tabA$HTAvgDaily)
+plot(tabM$date, tabM$MolecularAvgDaily, ylim = c(0,0.5))
+
+# Logistic regression model weekly
+
+tabWeekM = weekData %>% group_by(week) %>%
+  filter(testType=="Molecular") %>% summarize(MolecularPos=pos, MolecularTotal=n)
+tabWeekA = weekData %>% group_by(week) %>%  
+  filter(testType!="Molecular") %>% summarize(HTPos=pos, HTTotal=n)
+
+
+tabWeekA = tabWeekA %>% group_by(week) %>% filter(week<make_date(2022,6,26)) %>%
+  mutate(HTAvgDaily = HTPos/HTTotal)
+
+tabWeekM = tabWeekM %>% group_by(week) %>% filter(week<make_date(2022,6,26)) %>%
+  mutate(MolecularAvgDaily = MolecularPos/MolecularTotal)
+
+
+
+MolecularAndHT = full_join(tabWeekA,tabWeekM)
+
+split1<- sample(c(rep(0, 0.5 * nrow(MolecularAndHT)), rep(1, 0.5 * nrow(MolecularAndHT))))
+split1
+
+
+train_data <- MolecularAndHT[split1 == 0, ]
+
+test_data <- MolecularAndHT[split1 == 1, ]
+
+
+
+model <- glm(cbind(MolecularPos, MolecularTotal-MolecularPos) ~ HTAvgDaily
+             , data = MolecularAndHT, family = binomial(link = "log"))
+
+
+model
+conf_int <- confint(model)
+summary(model)
+
+test_data2 = select(test_data, date, HTPos, HTTotal, HTAvgDaily)
+
+probabilities <- predict(model, test_data, type = "response", se.fit = TRUE)
+
+tabM %>% filter(date>=make_date(2021,12,1)) %>%
+  ggplot(aes(date,pos/n)) +
+  geom_point()
+
+test_data$fit = probabilities$fit
+test_data$se = probabilities$se.fit
+
+probabilities
+probabilities <- unname(probabilities)
+probabilities
+
+ggplot(MolecularAndHT, aes(x = week, y = MolecularAndHT$MolecularAvgDaily)) +
+  geom_point(position = position_jitter(width = 0.05, height = 0.05)) +
+  geom_ribbon(data = test_data, aes(y = fit, ymin = fit - 1.96 * se, ymax = fit + 1.96 * se),
+              fill = "blue", alpha = 0.3) +
+  geom_line(data = test_data, aes(y = fit)) 
+
+
+plot(test_data$date, probabilities, ylim = c(0,0.5)) 
+plot(tabA$date, tabA$HTAvgDaily)
+plot(tabM$date, tabM$MolecularAvgDaily, ylim = c(0,0.5))
+
+
+# GLM but with rollmean of seven days
+
+rollMeanAvg = tab %>% group_by(testType) %>%
+  group_by(testType, date) %>%
+  filter(date>=make_date(2021,12,15) & date<make_date(2022,6,23)) %>%
+  summarize(pos = sum(result == 'positive'), n = n()) %>%
+  mutate(seven_day_avg = rollmean(pos/n, 7, align = 'right', fill = 0))
+
+rollMeanM = rollMeanAvg %>% filter(testType=="Molecular") %>% group_by(date) %>% 
+  summarize(MPos = pos, MTotal = n, TRMean = seven_day_avg)
+rollMeanA = rollMeanAvg %>% filter(testType!="Molecular") %>% group_by(date) %>% 
+  summarize(HTPos = pos, HTTotal = n, HTRMean = seven_day_avg)
+
+
+rollMean_HT_M = full_join(rollMeanM, rollMeanA)
+
+split1<- sample(c(rep(0, 0.5 * nrow(rollMean_HT_M)), rep(1, 0.5 * nrow(rollMean_HT_M))))
+split1
+
+
+
+train_data <- rollMean_HT_M[split1 == 0, ]
+
+test_data <- rollMean_HT_M[split1 == 1, ]
+
+
+model <- glm(cbind(MPos, MTotal-MPos) ~ HTRMean
+             , data = rollMean_HT_M, family = binomial(link = "log"))
+# 
+# model <- glm(cbind(HTPos, HTTotal - HTPos) ~ MolecularAvgDaily
+#              , data = MolecularAndHT, family = binomial(link = "log"))
+
+
+model
+conf_int <- confint(model)
+summary(model)
+
+test_data2 = select(test_data, date, HTPos, HTTotal, HTAvgDaily)
+
+probabilities <- predict(model, test_data, type = "response", se.fit = TRUE)
+
+tabM %>% filter(date>=make_date(2021,12,1)) %>%
+  ggplot(aes(date,pos/n)) +
+  geom_point()
+
+test_data$fit = probabilities$fit
+test_data$se = probabilities$se.fit
+
+probabilities
+probabilities <- unname(probabilities)
+probabilities
+
+ggplot(rollMean_HT_M, aes(x = date, y = rollMean_HT_M$TRMean)) +
+  geom_point(position = position_jitter(width = 0.05, height = 0.05)) +
+  geom_ribbon(data = test_data, aes(y = fit, ymin = fit - 1.96 * se, ymax = fit + 1.96 * se),
+              fill = "blue", alpha = 0.3) +
+  geom_line(data = test_data, aes(y = fit))
+
+
 
 # probabilities <- ifelse(probabilities >0.5, 1, 0)
 # 
@@ -378,95 +536,109 @@ plot(tabA$date, tabA$HTAvgDaily, ylim = c(0,0.5))
 # 
 # fit <- model$fit
 # fit2 <- model$family$linkinv(fit)
-
-
-tab %>% group_by(region, testType) %>%
-  summarize(pos = sum(result=="positive"), n = n()) %>%
-  ggplot(aes(region,pos/n)) +
-  geom_col() +
-  facet_wrap(~ testType)
-
-#GLM
-
-model = glm(cbind(pos, n-pos) ~ tab4$pos, data = tab4, family=binomial)
-probabilities <- predict(model, type = "response")
-
-conf_int <- confint(model)
-
-plot(probabilities)
-
-mydata <- tab4 %>%
-  dplyr::select_if(is.numeric)
-
-
-predictors <- colnames(mydata)
-
-mydata <- mydata %>%
-  ungroup()%>%
-  mutate(logit = log(probabilities / (1-probabilities))) %>%
-  gather(key = "predictors", value = "predictor.value", -logit)
-
-ggplot(mydata , aes(logit, predictor.value))+
-  geom_point(size = 0.3, alpha = 0.5) +
-  geom_smooth(method = "loess")
-  
-
-tab %>% group_by(date) %>% filter(result!="Molecular") %>%
-  summarize(pos = count(result=="positive"))
-
-
-test = tab3
-
-
-# Other prediction
-
-probabilities <- predict(model1, type = "response")
-plot(probabilities)
-
-mydata <- test %>%
-  dplyr::select_if(is.numeric)
-
-mydata <- mydata %>%
-  ungroup() %>%
-  mutate(logit = log(probabilities / (1 - probabilities))) %>%
-  gather(key = "predictors", value = "predictor.value", -logit)
-
-ggplot(mydata, aes(logit,predictor.value)) +
-  geom_point(size = 0.5, alpha = 0.5) +
-  geom_smooth(method = "loess")
-
-
-split1<- sample(c(rep(0, 0.7 * nrow(tab6)), rep(1, 0.3 * nrow(tab6))))
-table(split1) 
-
-train <- tab6[split1, ]
-test <- tab6[-split1, ]
-
-#total molecular test - molecular positive
-
-model1 <- glm(cbind(pos, n-pos) ~ pos, family = "binomial", data = test)
-
-preddata <- with(tab6, data.frame(x = seq(min(pos), max(pos), length = 50)))
-preds <- predict(model1, type = "link", se.fit = TRUE)
-
-critval <- 1.96 ## approx 95% CI
-upr <- preds$fit + (critval * preds$se.fit)
-lwr <- preds$fit - (critval * preds$se.fit)
-fit <- preds$fit
-
-fit2 <- model1$family$linkinv(fit)
-upr2 <- model1$family$linkinv(upr)
-lwr2 <- model1$family$linkinv(lwr)
-
-preddata$lwr <- lwr2 
-preddata$upr <- upr2 
-
-tab6 %>% 
-  ggplot(aes(x=date,y=pos)) +
-  geom_ribbon(aes(ymin=pos-.2, ymax=pos+.2), size=.1, fill='gray') +
-  geom_point(size = 0.5, alpha = 0.5) +
-  geom_smooth(method = "loess")
-
+# 
+# critval <- 1.96 ## approx 95% CI
+# uprHT = mean(MolecularAndHT$HTAvgDaily) + critval * (sd(MolecularAndHT$HTAvgDaily)/sqrt(MolecularAndHT$HTAvgDaily))
+# uprM = mean(MolecularAndHT$MolecularAvgDaily) + critval * (sd(MolecularAndHT$MolecularAvgDaily)/sqrt(MolecularAndHT$MolecularAvgDaily))
+# 
+# lowHT = mean(MolecularAndHT$HTAvgDaily) - critval * (sd(MolecularAndHT$HTAvgDaily)/sqrt(MolecularAndHT$HTAvgDaily))
+# lowM = mean(MolecularAndHT$MolecularAvgDaily) - critval * (sd(MolecularAndHT$MolecularAvgDaily)/sqrt(MolecularAndHT$MolecularAvgDaily))
+#   
+# 
+# PCI <- function(x, z) 
+#   mean(x) + z * (sd(x)/sqrt(length(x)))
+# 
+# NCI <- function(x, z)  mean(x) - z * (sd(x)/sqrt(length(x)))
+# 
+# 
+# NCI(binaryData2, critval)
+# 
+# upr <- preds$fit + (critval * preds$se.fit)
+# lwr <- preds$fit - (critval * preds$se.fit)
+# fit <- preds$fit
+# 
+# 
+# #GLM
+# 
+# model = glm(cbind(pos, n-pos) ~ tab4$pos, data = tab4, family=binomial)
+# probabilities <- predict(model, type = "response")
+# 
+# conf_int <- confint(model)
+# 
+# plot(probabilities)
+# 
+# mydata <- tab4 %>%
+#   dplyr::select_if(is.numeric)
+# 
+# 
+# predictors <- colnames(mydata)
+# 
+# mydata <- mydata %>%
+#   ungroup()%>%
+#   mutate(logit = log(probabilities / (1-probabilities))) %>%
+#   gather(key = "predictors", value = "predictor.value", -logit)
+# 
+# ggplot(mydata , aes(logit, predictor.value))+
+#   geom_point(size = 0.3, alpha = 0.5) +
+#   geom_smooth(method = "loess")
+#   
+# 
+# tab %>% group_by(date) %>% filter(result!="Molecular") %>%
+#   summarize(pos = count(result=="positive"))
+# 
+# 
+# test = tab3
+# 
+# 
+# # Other prediction
+# 
+# probabilities <- predict(model1, type = "response")
+# plot(probabilities)
+# 
+# mydata <- test %>%
+#   dplyr::select_if(is.numeric)
+# 
+# mydata <- mydata %>%
+#   ungroup() %>%
+#   mutate(logit = log(probabilities / (1 - probabilities))) %>%
+#   gather(key = "predictors", value = "predictor.value", -logit)
+# 
+# ggplot(mydata, aes(logit,predictor.value)) +
+#   geom_point(size = 0.5, alpha = 0.5) +
+#   geom_smooth(method = "loess")
+# 
+# 
+# split1<- sample(c(rep(0, 0.7 * nrow(tab6)), rep(1, 0.3 * nrow(tab6))))
+# table(split1) 
+# 
+# train <- tab6[split1, ]
+# test <- tab6[-split1, ]
+# 
+# #total molecular test - molecular positive
+# 
+# model1 <- glm(cbind(pos, n-pos) ~ pos, family = "binomial", data = test)
+# 
+# preddata <- with(tab6, data.frame(x = seq(min(pos), max(pos), length = 50)))
+# preds <- predict(model1, type = "link", se.fit = TRUE)
+# 
+# critval <- 1.96 ## approx 95% CI
+# upr <- preds$fit + (critval * preds$se.fit)
+# lwr <- preds$fit - (critval * preds$se.fit)
+# fit <- preds$fit
+# 
+# fit2 <- model1$family$linkinv(fit)
+# upr2 <- model1$family$linkinv(upr)
+# lwr2 <- model1$family$linkinv(lwr)
+# 
+# preddata$lwr <- lwr2 
+# preddata$upr <- upr2 
+# 
+# tab6 %>% 
+#   ggplot(aes(x=date,y=pos)) +
+#   geom_ribbon(aes(ymin=pos-.2, ymax=pos+.2), size=.1, fill='gray') +
+#   geom_point(size = 0.5, alpha = 0.5) +
+#   geom_smooth(method = "loess")
+# 
 
 
 
@@ -518,4 +690,6 @@ tab6 %>%
 # 
 # ggplot(data=y) +
 #   geom_histogram(aes(x=y))
+
+
 
