@@ -242,48 +242,10 @@ tabAvg[is.na(tabAvg)] <- 0
 
 # Correlation between positivity rates
 tabAvg %>% filter(date>=make_date(2021,12,1)) %>% 
-  ggplot(aes(x = avgM, y = avgA)) + 
+  ggplot(aes(x = date, y = avgA)) + 
   geom_point() +
   geom_smooth(method='lm', formula= y~x) +
   stat_cor(method = "pearson", label.x = 0.1, label.y = 0.75)
-
-
-## Binomial molecular
-
-posM = tab %>% filter(testType=="Molecular" & date>=make_date(2021,12,15)) 
-binaryData1 = as.integer(as.data.frame(posM)$result == "positive")
-
-positive_cases1 <- nrow(posM[posM$result=='positive',])
-n1 <- nrow(posM)
-
-probability1 <- positive_cases1 / n
-
-y <- rbinom(positive_cases1, n1, probability1) / n1
-p1 = hist(y)
-plot(p1)
-
-
-
-#Binomial hometest
-
-posA = tab %>% filter(testType!="Molecular")
-binaryData2 = as.integer(as.data.frame(posA)$result == "positive")
-
-
-positive_cases2 <- nrow(posA[posA$result=='positive',])
-n2 <- nrow(posA)
-
-probability2 <- positive_cases2 / n2
-
-y <- rbinom(positive_cases2, n2, probability2) / n2
-
-p2 = hist(y)
-
-plot(p2)
-
-
-# plot( p1, col=rgb(0,0,1,1/4))  # first histogram
-# plot( p2, col=rgb(1,0,0,1/4), add=T) 
 
 
 tab %>% group_by(date, testType) %>%  filter(date>=make_date(2021,12,1)) %>%
@@ -322,15 +284,6 @@ se(tests$pos[tests$testType=="Molecular"])
 se(tests$pos[tests$testType!="Molecular"])
 
 
-h = dnorm(v, mean(v), sd(v))
-
-plot(v,h)
-
-tab6 %>% group_by(date) %>%
-  summarize(avgP = ifelse(avgA == 0, 0, avgA - e2)) %>%
-  ggplot(aes(date, avgP)) +
-  geom_point()
-
 # Logistic regression model daily
 
 tabM = tab %>% group_by(date) %>% filter(date>=make_date(2021,12,15) & date<make_date(2022,6,23)) %>%
@@ -339,9 +292,9 @@ tabA = tab %>% group_by(date) %>% filter(date>=make_date(2021,12,1) & date<make_
   filter(testType!="Molecular") %>% summarize(HTPos=sum(result=="positive"), HTTotal=n())
 
 
-
-# tabM = select(tabM,date,pos,n,avg)
-# tabA = select(tabA,pos,n)
+          
+          # tabM = select(tabM,date,pos,n,avg)
+          # tabA = select(tabA,pos,n)
 
 tabA = tabA %>% group_by(date) %>%
   mutate(HTAvgDaily = HTPos/HTTotal)
@@ -349,78 +302,138 @@ tabA = tabA %>% group_by(date) %>%
 tabM = tabM %>% group_by(date) %>%
   mutate(MolecularAvgDaily = MolecularPos/MolecularTotal)
 
-# train_dataA = tabA %>% filter(date>=make_date(2021,12,15) & date<make_date(2022,3,22))
-# train_dataM = tabM %>% filter(date>=make_date(2021,12,15) & date<make_date(2022,3,22))
-# 
-# test_dataA = tabA %>% filter(date>=make_date(2022,3,22))
-# test_dataM = tabM %>% filter(date>=make_date(2022,3,22))
+          # train_dataA = tabA %>% filter(date>=make_date(2021,12,15) & date<make_date(2022,3,22))
+          # train_dataM = tabM %>% filter(date>=make_date(2021,12,15) & date<make_date(2022,3,22))
+          # 
+          # test_dataA = tabA %>% filter(date>=make_date(2022,3,22))
+          # test_dataM = tabM %>% filter(date>=make_date(2022,3,22))
 
 MolecularAndHT = full_join(tabA,tabM)
 
+# Add dates to table 
 MolecularAndHT = as.data.table(MolecularAndHT) %>% 
   mutate(date = as.Date(date)) %>% 
   mutate(weekday = weekdays(date)) %>% 
   dcast(date + HTPos + HTTotal + HTAvgDaily + MolecularPos + MolecularTotal + MolecularAvgDaily
         ~ weekday, fun.aggregate = length)
 
+
+# Removes outlier
 MolecularAndHT = MolecularAndHT[!(MolecularAndHT$date=="2022-03-12")]
 MolecularAndHT = MolecularAndHT[!(MolecularAndHT$date=="2022-06-22")]
 
+MolecularAndHT = MolecularAndHT[!(MolecularAndHT$date=="2022-03-10")]
+MolecularAndHT = MolecularAndHT[!(MolecularAndHT$date=="2022-03-09")]
+
+# Smooth hometest positivity rate
+MA = forecast::ma(MolecularAndHT$HTAvgDaily, order = 7)
+
+MolecularAndHT$HTAvgDaily = MA
+
+# Divide data into test and train
 split1<- sample(c(rep(0, 0.5 * nrow(MolecularAndHT)), rep(1, 0.5 * nrow(MolecularAndHT))))
 split1
 
-# train_dataA <- tabA[split1 == 0, ]
-# train_dataM <- tabM[split1 == 0, ]
-# 
-# test_dataA <- tabA[split1 == 1, ]
-# test_dataM <- tabM[split1 == 1, ]
+          # train_dataA <- tabA[split1 == 0, ]
+          # train_dataM <- tabM[split1 == 0, ]
+          # 
+          # test_dataA <- tabA[split1 == 1, ]
+          # test_dataM <- tabM[split1 == 1, ]
 
 train_data <- MolecularAndHT[split1 == 0, ]
  
 test_data <- MolecularAndHT[split1 == 1, ]
 
-# train_reg <- subset(tabA, split == "TRUE")
-# test_reg <- subset(tabM, split == "FALSE")
+      # train_reg <- subset(tabA, split == "TRUE")
+      # test_reg <- subset(tabM, split == "FALSE")
+
+# Create model using (MPos, MNeg) ~ HTAvg
 
 model <- glm(cbind(MolecularPos, MolecularTotal-MolecularPos) ~ HTAvgDaily 
-             , data = MolecularAndHT, family = binomial(link = "log"), weights = HTTotal)
+             , data = train_data, family = binomial, weights = HTTotal)
 
-# model <- glm(cbind(HTPos, HTTotal - HTPos) ~ MolecularAvgDaily
-#               , data = MolecularAndHT, family = binomial(link = "log"))
-#  
+        # model <- glm(MolecularAvgDaily ~ HTAvgDaily
+        #              , data = MolecularAndHT, family = binomial, weights = HTTotal)
+        
+        # model <- glm(cbind(HTPos, HTTotal - HTPos) ~ MolecularAvgDaily
+        #               , data = MolecularAndHT, family = binomial(link = "log"))
+        #  
+
+# Check model
 
 model
 conf_int <- confint(model)
 summary(model)
 
-test_data2 = select(test_data, date, HTPos, HTTotal, HTAvgDaily)
-
+# Prob with test data
 probabilities <- predict(model, test_data, type = "response", se.fit = TRUE)
 
-tabM %>% filter(date>=make_date(2021,12,1)) %>%
-  ggplot(aes(date,pos/n)) +
-  geom_point()
 
 test_data$fit = probabilities$fit
 test_data$se = probabilities$se.fit
 
 probabilities
-probabilities <- unname(probabilities)
-probabilities
+            # probabilities <- unname(probabilities)
+            # probabilities
+prob = probabilities$fit
+
+mydata <- test_data %>%
+  dplyr::select_if(is.numeric)
+
+mydata <- mydata %>%
+  ungroup() %>%
+  mutate(logit = log(prob / (1 - prob))) %>%
+  gather(key = "predictors", value = "predictor.value", -logit)
+
+ggplot(mydata, aes(predictor.value, logit)) +
+  geom_point(size = 0.5, alpha = 0.5) +
+  geom_smooth(method = "loess")
+
+            # library(boot)
+            # inv.logit(-1.2)
+            # 
+            # fit = model$fit
+            # fit2 = model$family$linkinv(fit)
+            # 
+            # fit3 = data.frame(fit = fit, date = MolecularAndHT$date)
+            # 
+            # fit4 = full_join(MolecularAndHT, fit3)
+            # 
+            # ggplot(fit4) +
+            #   geom_point(aes(date, HTAvgDaily)) +
+            #   geom_point(aes(date, MolecularAvgDaily), color = "red") +
+            #   geom_point(aes(date, fit), color = "blue")
 
 ggplot(MolecularAndHT, aes(x = date, y = MolecularAndHT$MolecularAvgDaily)) +
-  geom_point(position = position_jitter(width = 0.05, height = 0.05)) +
+  geom_point() +
   geom_ribbon(data = test_data, aes(y = fit, ymin = fit - 1.96 * se, ymax = fit + 1.96 * se),
               fill = "blue", alpha = 0.3) +
   geom_line(data = test_data, aes(y = fit)) 
 
 ggplot(test_data, aes(date, MolecularAvgDaily)) +        # ggplot2 plot with confidence intervals
   geom_point() +
-  geom_errorbar(aes( ymin = fit - 1.96 * se, ymax = fit + 1.96 * se))
+  geom_errorbar(aes( ymin = (fit - 1.96 * se), ymax = (fit + 1.96 * se)))
 
-plot(test_data$date, probabilities, ylim = c(0,0.5)) 
-plot(tabA$date, tabA$HTAvgDaily)
-plot(tabM$date, tabM$MolecularAvgDaily, ylim = c(0,0.5))
+        # plot(test_data$date, prob, ylim = c(0,0.5)) 
+        # lines(tabA$date, tabA$HTAvgDaily)
+        # lines(tabM$date, tabM$MolecularAvgDaily, ylim = c(0,0.5))
+
+ll.null <- model$null.deviance/-2 
+ll.proposed = model$deviance/-2 
+
+(ll.null - ll.proposed)/ ll.null
+1-pchisq(model$null.deviance - model$deviance, df = length(model$coefficients)-1)
+
+anova(model, model2, test = "chisq")
+
+pres2 = residuals(model, type = "pearson")
+plot(fitted(model)^(1/2), sqrt(pres2))
+
+model$deviance / model$df.residual
+sum(residuals(model, type='pearson')^2)/model$df.residual 
+
+
+
 
 # Logistic regression model weekly
 
@@ -436,10 +449,10 @@ tabWeekA = tabWeekA %>% group_by(week) %>% filter(week<make_date(2022,6,26)) %>%
 tabWeekM = tabWeekM %>% group_by(week) %>% filter(week<make_date(2022,6,26)) %>%
   mutate(MolecularAvgDaily = MolecularPos/MolecularTotal)
 
-
+# Join data
 MolecularAndHT = full_join(tabWeekA,tabWeekM)
 
-
+# Split into test and train
 split1<- sample(c(rep(0, 0.5 * nrow(MolecularAndHT)), rep(1, 0.5 * nrow(MolecularAndHT))))
 split1
 
@@ -449,7 +462,7 @@ train_data <- MolecularAndHT[split1 == 0, ]
 test_data <- MolecularAndHT[split1 == 1, ]
 
 
-
+# Model for weekly average
 model2 <- glm(cbind(MolecularPos, MolecularTotal-MolecularPos) ~ HTAvgDaily
              , data = train_data, family = binomial(link = "log"))
 
@@ -458,20 +471,16 @@ model2
 conf_int <- confint(model2)
 summary(model2)
 
-test_data2 = select(test_data, date, HTPos, HTTotal, HTAvgDaily)
-
+# Probabilities
 probabilities <- predict(model2, test_data, type = "response", se.fit = TRUE)
 
-tabM %>% filter(date>=make_date(2021,12,1)) %>%
-  ggplot(aes(date,pos/n)) +
-  geom_point()
 
 test_data$fit = probabilities$fit
 test_data$se = probabilities$se.fit
 
 probabilities
-probabilities <- unname(probabilities)
-probabilities
+        # probabilities <- unname(probabilities)
+        # probabilities
 
 ggplot(MolecularAndHT, aes(x = week, y = MolecularAndHT$MolecularAvgDaily)) +
   geom_point(position = position_jitter(width = 0.05, height = 0.05)) +
@@ -479,25 +488,28 @@ ggplot(MolecularAndHT, aes(x = week, y = MolecularAndHT$MolecularAvgDaily)) +
               fill = "blue", alpha = 0.3) +
   geom_line(data = test_data, aes(y = fit)) 
 
+ggplot(test_data, aes(week, MolecularAvgDaily)) +        # ggplot2 plot with confidence intervals
+  geom_point() +
+  geom_errorbar(aes( ymin = fit - 1.96 * se, ymax = fit + 1.96 * se))
 
-plot(test_data$date, probabilities, ylim = c(0,0.5)) 
-plot(tabA$date, tabA$HTAvgDaily)
-plot(tabM$date, tabM$MolecularAvgDaily, ylim = c(0,0.5))
 
-ll.null <- model$null.deviance/-2 
-ll.proposed = model$deviance/-2 
+    # plot(test_data$date, probabilities, ylim = c(0,0.5)) 
+    # plot(tabA$date, tabA$HTAvgDaily)
+    # plot(tabM$date, tabM$MolecularAvgDaily, ylim = c(0,0.5))
+
+ll.null <- model2$null.deviance/-2 
+ll.proposed = model2$deviance/-2 
 
 (ll.null - ll.proposed)/ ll.null
-1-pchisq(model$null.deviance - model$deviance, df = length(model$coefficients)-1)
+1-pchisq(model2$null.deviance - model2$deviance, df = length(model2$coefficients)-1)
 
-anova(model1, model2, test = "chisq")
+anova(model, model2, test = "chisq")
 
-pres2 = residuals(model, type = "pearson")
-plot(fitted(model)^(1/2), sqrt(pres2))
+pres2 = residuals(model2, type = "pearson")
+plot(fitted(model2)^(1/2), sqrt(pres2))
 
-
-model$deviance / model$df.residual
-sum(residuals(model, type='pearson')^2)/model$df.residual 
+model2$deviance / model2$df.residual
+sum(residuals(model2, type='pearson')^2)/model2$df.residual 
 
 
 # GLM but with rollmean of seven days
@@ -506,8 +518,7 @@ rollMeanAvg = tab %>% group_by(testType) %>%
   group_by(testType, date) %>%
   filter(date>=make_date(2021,12,15) & date<make_date(2022,6,23)) %>%
   summarize(pos = sum(result == 'positive'), n = n()) %>%
-  mutate(pos = rollmean(pos, 7, align = 'right', fill = 0), n = rollmean(pos, 7, align = 'right', fill = 0)) %>%
-  mutate(seven_day_avg = pos/n)
+  mutate(seven_day_avg = rollmean(pos/n, 7, align = 'right', fill = 0))
 
 rollMeanM = rollMeanAvg %>% filter(testType=="Molecular") %>% group_by(date) %>% 
   summarize(MPos = pos, MTotal = n, TRMean = seven_day_avg)
@@ -516,6 +527,14 @@ rollMeanA = rollMeanAvg %>% filter(testType!="Molecular") %>% group_by(date) %>%
 
 
 rollMean_HT_M = full_join(rollMeanM, rollMeanA)
+
+ggplot(rollMean_HT_M, aes(date, HTRMean)) +
+  geom_point()
+
+
+MA = forecast::ma(rollMean_HT_M$HTRMean, order = 7)
+
+rollMean_HT_M$HTRMean = MA
 
 split1<- sample(c(rep(0, 0.5 * nrow(rollMean_HT_M)), rep(1, 0.5 * nrow(rollMean_HT_M))))
 split1
@@ -527,37 +546,49 @@ train_data <- rollMean_HT_M[split1 == 0, ]
 test_data <- rollMean_HT_M[split1 == 1, ]
 
 
-model <- glm(cbind(MPos, MTotal-MPos) ~ HTRMean
+model3 <- glm(cbind(MPos, MTotal-MPos) ~ HTRMean
              , data = train_data, family = binomial(link = "log"))
-# 
-# model <- glm(cbind(HTPos, HTTotal - HTPos) ~ MolecularAvgDaily
+
+# model3 <- glm(cbind(HTPos, HTTotal - HTPos) ~ MolecularAvgDaily
 #              , data = MolecularAndHT, family = binomial(link = "log"))
 
 
-model
-conf_int <- confint(model)
-summary(model)
+model3
+conf_int <- confint(model3)
+summary(model3)
 
-test_data2 = select(test_data, date, HTPos, HTTotal, HTAvgDaily)
 
-probabilities <- predict(model, test_data, type = "response", se.fit = TRUE)
+probabilities <- predict(model3, test_data, type = "response", se.fit = TRUE)
 
-tabM %>% filter(date>=make_date(2021,12,1)) %>%
-  ggplot(aes(date,pos/n)) +
-  geom_point()
 
 test_data$fit = probabilities$fit
 test_data$se = probabilities$se.fit
 
 probabilities
-probabilities <- unname(probabilities)
-probabilities
+          # probabilities <- unname(probabilities)
+          # probabilities
 
 ggplot(rollMean_HT_M, aes(x = date, y = rollMean_HT_M$TRMean)) +
-  geom_point(position = position_jitter(width = 0.05, height = 0.05)) +
+  geom_point() +
   geom_ribbon(data = test_data, aes(y = fit, ymin = fit - 1.96 * se, ymax = fit + 1.96 * se),
               fill = "blue", alpha = 0.3) +
   geom_line(data = test_data, aes(y = fit))
+
+
+
+ll.null <- model3$null.deviance/-2 
+ll.proposed = model3$deviance/-2 
+
+(ll.null - ll.proposed)/ ll.null
+1-pchisq(model3$null.deviance - model3$deviance, df = length(model3$coefficients)-1)
+
+anova(model3, model, test = "Chisq")
+
+pres2 = residuals(model3, type = "pearson")
+plot(fitted(model3)^(1/2), sqrt(pres2))
+
+model3$deviance / model3$df.residual
+sum(residuals(model3, type='pearson')^2)/model3$df.residual 
 
 
 
@@ -793,3 +824,80 @@ ggplot(rollMean_HT_M, aes(x = date, y = rollMean_HT_M$TRMean)) +
 # 
 # Ta = Ta %>% filter(result=="positive")
 # 
+
+# de = deaths %>% group_by(date) %>% filter(date>=make_date(2021,12,1)) %>%
+#   summarize(total = sum(CO_CLASIFICACION=="CONFIRMADO"))
+# 
+# ggplot(de) +
+#   geom_point(aes(date, total))
+# 
+# ggplot(MolecularAndHT) +
+#   geom_point(aes(date, MolecularAvgDaily))
+
+
+# ## Binomial molecular
+# 
+# posM = tab %>% filter(testType=="Molecular" & date>=make_date(2021,12,15)) 
+# binaryData1 = as.integer(as.data.frame(posM)$result == "positive")
+# 
+# positive_cases1 <- nrow(posM[posM$result=='positive',])
+# n1 <- nrow(posM)
+# 
+# probability1 <- positive_cases1 / n
+# 
+# y <- rbinom(positive_cases1, n1, probability1) / n1
+# p1 = hist(y)
+# plot(p1)
+# 
+# 
+# 
+# #Binomial hometest
+# 
+# posA = tab %>% filter(testType!="Molecular")
+# binaryData2 = as.integer(as.data.frame(posA)$result == "positive")
+# 
+# 
+# positive_cases2 <- nrow(posA[posA$result=='positive',])
+# n2 <- nrow(posA)
+# 
+# probability2 <- positive_cases2 / n2
+# 
+# y <- rbinom(positive_cases2, n2, probability2) / n2
+# 
+# p2 = hist(y)
+# 
+# plot(p2)
+# 
+# 
+# # plot( p1, col=rgb(0,0,1,1/4))  # first histogram
+# # plot( p2, col=rgb(1,0,0,1/4), add=T) 
+
+
+# 
+# MolecularAndHT %>% group_by(date) %>%
+#   mutate(diff = HTAvgDaily - MolecularAvgDaily) %>%
+#   ggplot(aes(date, MolecularAvgDaily)) +
+#   geom_point() +
+#   geom_errorbar(aes( ymin = ifelse(MolecularAvgDaily>HTAvgDaily,HTAvgDaily, MolecularAvgDaily), 
+#                      ymax = ifelse(MolecularAvgDaily>HTAvgDaily, MolecularAvgDaily, HTAvgDaily))) +
+#   geom_point(aes(date, HTAvgDaily), color = "blue")
+# 
+# 
+# MA = forecast::ma(MolecularAndHT$HTAvgDaily, order = 7)
+# 
+# MolecularAndHT$HTAvgDaily = MA
+# 
+# ggplot() +
+#   geom_line(aes(1:186,MolecularAndHT$HTAvgDaily)) +
+#   geom_line(aes(1:186, MA), color = "blue") +
+#   geom_line(aes(1:186, MolecularAndHT$MolecularAvgDaily), color="red")
+# 
+# lines(MolecularAndHT$HTAvgDaily)
+# lines(MA, col="blue", lwd=3)
+# 
+# library(mgcv)
+# 
+# regM = gam(MolecularAvgDaily ~ HTAvgDaily, data = MolecularAndHT)
+# summary(regM)
+# plot(regM)
+
