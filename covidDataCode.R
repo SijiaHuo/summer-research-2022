@@ -9,6 +9,7 @@ library(ggpubr)
 install.package("caTools")
 library(caTools)
 library(data.table) # for dcast()
+library(npreg)
 
 # initializations
 
@@ -326,9 +327,14 @@ MolecularAndHT = MolecularAndHT[!(MolecularAndHT$date=="2022-03-10")]
 MolecularAndHT = MolecularAndHT[!(MolecularAndHT$date=="2022-03-09")]
 
 # Smooth hometest positivity rate
-MA = forecast::ma(MolecularAndHT$HTAvgDaily, order = 7)
 
-MolecularAndHT$HTAvgDaily = MA
+mod.ss = smooth.spline(MolecularAndHT$HTAvgDaily, nknots = 10)
+
+MolecularAndHT$HTAvgDaily <- mod.ss$y
+
+# MA = forecast::ma(MolecularAndHT$HTAvgDaily, order = 7)
+# 
+# MolecularAndHT$HTAvgDaily = MA
 
 # Divide data into test and train
 split1<- sample(c(rep(0, 0.5 * nrow(MolecularAndHT)), rep(1, 0.5 * nrow(MolecularAndHT))))
@@ -344,20 +350,22 @@ train_data <- MolecularAndHT[split1 == 0, ]
  
 test_data <- MolecularAndHT[split1 == 1, ]
 
+# MolecularAndHT$date <- as.factor(MolecularAndHT$date)
+
       # train_reg <- subset(tabA, split == "TRUE")
       # test_reg <- subset(tabM, split == "FALSE")
 
 # Create model using (MPos, MNeg) ~ HTAvg
 
-model <- glm(cbind(MolecularPos, MolecularTotal-MolecularPos) ~ HTAvgDaily 
+model <- glm(cbind(MolecularPos, MolecularTotal-MolecularPos) ~ HTAvgDaily
              , data = train_data, family = binomial, weights = HTTotal)
 
-        # model <- glm(MolecularAvgDaily ~ HTAvgDaily
-        #              , data = MolecularAndHT, family = binomial, weights = HTTotal)
-        
-        # model <- glm(cbind(HTPos, HTTotal - HTPos) ~ MolecularAvgDaily
-        #               , data = MolecularAndHT, family = binomial(link = "log"))
-        #  
+      # model <- glm(cbind(MolecularPos, MolecularTotal-MolecularPos) ~ HTAvgDaily 
+      #               , data = MolecularAndHT, family = binomial, weights = HTTotal)
+
+      # model <- glm(cbind(HTPos, HTTotal - HTPos) ~ MolecularAvgDaily
+      #                , data = train_data, family = binomial(link = "log"), weights = HTTotal)
+
 
 # Check model
 
@@ -404,11 +412,16 @@ ggplot(mydata, aes(predictor.value, logit)) +
             #   geom_point(aes(date, MolecularAvgDaily), color = "red") +
             #   geom_point(aes(date, fit), color = "blue")
 
+
+# Graph with probability and actual molecular average
+
 ggplot(MolecularAndHT, aes(x = date, y = MolecularAndHT$MolecularAvgDaily)) +
   geom_point() +
   geom_ribbon(data = test_data, aes(y = fit, ymin = fit - 1.96 * se, ymax = fit + 1.96 * se),
               fill = "blue", alpha = 0.3) +
   geom_line(data = test_data, aes(y = fit)) 
+
+# Error bar graph
 
 ggplot(test_data, aes(date, MolecularAvgDaily)) +        # ggplot2 plot with confidence intervals
   geom_point() +
@@ -417,6 +430,8 @@ ggplot(test_data, aes(date, MolecularAvgDaily)) +        # ggplot2 plot with con
         # plot(test_data$date, prob, ylim = c(0,0.5)) 
         # lines(tabA$date, tabA$HTAvgDaily)
         # lines(tabM$date, tabM$MolecularAvgDaily, ylim = c(0,0.5))
+
+# To analyze models
 
 ll.null <- model$null.deviance/-2 
 ll.proposed = model$deviance/-2 
@@ -481,6 +496,9 @@ test_data$se = probabilities$se.fit
 probabilities
         # probabilities <- unname(probabilities)
         # probabilities
+
+
+# Graphs 
 
 ggplot(MolecularAndHT, aes(x = week, y = MolecularAndHT$MolecularAvgDaily)) +
   geom_point(position = position_jitter(width = 0.05, height = 0.05)) +
@@ -825,14 +843,15 @@ sum(residuals(model3, type='pearson')^2)/model3$df.residual
 # Ta = Ta %>% filter(result=="positive")
 # 
 
-# de = deaths %>% group_by(date) %>% filter(date>=make_date(2021,12,1)) %>%
-#   summarize(total = sum(CO_CLASIFICACION=="CONFIRMADO"))
-# 
-# ggplot(de) +
-#   geom_point(aes(date, total))
-# 
-# ggplot(MolecularAndHT) +
-#   geom_point(aes(date, MolecularAvgDaily))
+de = deaths %>% group_by(date) %>% filter(date>=make_date(2021,12,15)) %>%
+  summarize(total = sum(CO_CLASIFICACION=="CONFIRMADO" | CO_CLASIFICACION!="CONFIRMADO"))
+
+ggplot(de) +
+  geom_point(aes(date, total))
+
+ggplot(MolecularAndHT) +
+  geom_point(aes(date, MolecularAvgDaily))
+
 
 
 # ## Binomial molecular
@@ -895,9 +914,37 @@ sum(residuals(model3, type='pearson')^2)/model3$df.residual
 # lines(MolecularAndHT$HTAvgDaily)
 # lines(MA, col="blue", lwd=3)
 # 
-# library(mgcv)
+library(mgcv)
 # 
-# regM = gam(MolecularAvgDaily ~ HTAvgDaily, data = MolecularAndHT)
-# summary(regM)
-# plot(regM)
+regM = gam(MolecularAvgDaily ~ HTAvgDaily, data = MolecularAndHT)
+summary(regM)
+
+
+
+
+indices = seq(from = 1, to = length(probabilities$fit), by = 1)
+mod.ss = ss(indices, probabilities$fit, nknots = 10)
+
+plot(probabilities$fit)
+lines(indices, mod.ss$y, lty = 1, col = 1, lwd = 3)
+plot(mod.ss)
+
+
+
+
+n <- 101
+x <- seq(0, 1, length.out = n)
+y <- sin(2 * pi * x) + rnorm(n, sd = 0.5)
+mod.ss <- ss(x, y, nknots = 10)
+mod.ss
+plot(x, y)             # data
+
+
+mod.ss = smooth.spline(1:190, MolecularAndHT$HTAvgDaily, nknots = 10)
+
+MolecularAndHT$HTAvgDaily <- mod.ss$y
+
+ggplot(MolecularAndHT) +
+  geom_line(aes(date, MolecularAvgDaily)) +
+  geom_line(aes(date, HTAvgDaily))
 
