@@ -3,6 +3,7 @@ This is the GitHub repo of the 2022 Summer Program in Biostatistics & Computatio
 * `wrangling.R` - downloads and cleans molecular and hometest data
 * `analysis.R` - file for graphing and analyzing data
 * `graphs.R` - plots that compare the data
-* `predict.R` - predictive models
+* `predict.R` - predictive logit model
+* `region.R` - stratifies the data by region
 
 
