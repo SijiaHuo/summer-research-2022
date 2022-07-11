@@ -19,17 +19,17 @@ filtered_pdat <- pdat %>%
   mutate(lagDate = lag(date), days_elapsed = as.numeric(date - lagDate)) %>%
   mutate(p = k/n)
 
-filtered_pdat <- filtered_pdat %>% 
-  filter(days_elapsed<=14) %>%
-  group_by(patientId, testType) %>%
-  mutate(agrees = ifelse(sum(testType == 'AntigensSelfTest') == sum(testType=='Molecular'), TRUE, FALSE))
+filtered_pdat2 <- filtered_pdat %>%
+  group_by(patientId) %>%
+  filter(days_elapsed<=7) %>%
+  filter(length(unique(testType))==2)
 
-sample <- unique(filtered_pdat$patientId)[1:25]
+sample <- unique(filtered_pdat2$patientId)[50:100]
 
-filtered_pdat %>%
+filtered_pdat2 %>%
   filter(patientId %in% sample) %>%
   ggplot(aes(date, p, shape=testType, color=result)) +
-  geom_text(aes(label=substr(testType, 1, 1)), size=3) +
+  geom_text(aes(label=substr(testType, 1, 1)), size=3.5) +
   facet_wrap(~patientId) +
   theme_bw()
 
