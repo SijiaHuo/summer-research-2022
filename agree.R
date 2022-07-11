@@ -13,17 +13,47 @@ pdat <- tab %>% #tab %>%
 filtered_pdat <- pdat %>% 
   arrange(date) %>%
   mutate(lagDate = lag(date), days_elapsed = as.numeric(date - lagDate)) %>%
-  mutate(p = k/n) %>%
   group_by(patientId) %>%
-  filter(days_elapsed<=7) %>%
-  filter(length(unique(testType))==2)
+  mutate(y=ifelse(testType=='Molecular', 1, 1.25))
 
-sample <- unique(filtered_pdat$patientId)[50:100]
+filtered_pdat <- as.data.frame(filtered_pdat)
+filtered_pdat$index <- seq.int(nrow(filtered_pdat))
+
+split_data <- split(filtered_pdat, filtered_pdat$patientId)
+
+pairs = data.frame()
+
+for (df in split_data) {
+  for (numrow in 1:nrow(df)) {
+    rowTestType <- df[numrow,"testType"]
+    rowResult  <- df[numrow, "result"]
+    rowIndex  <- df[numrow, "index"]
+    rowDate  <- df[numrow, "date"]
+    
+    patientDataExcludingCurrent <- filter(df, index!=rowIndex)
+    
+    for (numrow_excluded in 1:nrow(patientDataExcludingCurrent)) {
+      excludedRowTestType <- patientDataExcludingCurrent[numrow_excluded,"testType"]
+      excludedRowResult  <- patientDataExcludingCurrent[numrow_excluded, "result"]
+      excludedRowIndex  <- patientDataExcludingCurrent[numrow_excluded, "index"]
+      excludedRowDate <- patientDataExcludingCurrent[numrow_excluded, "date"]
+      
+      if ((excludedRowTestType != rowTestType & abs(difftime(rowDate, excludedRowDate, units='days')) <= 14)) {
+        pairs <- rbind(pairs, as.data.frame(rbind(patientDataExcludingCurrent[numrow_excluded,], df[numrow,])))
+      }
+    }
+  }
+}
+
+antigenY = 1
+molecularY = 1.25
+
+sampleSize = 50
 
 filtered_pdat %>%
-  filter(patientId %in% sample) %>%
-  ggplot(aes(date, p, shape=testType, color=result)) +
+  filter(index <= sampleSize & date >= make_date(2021, 12, 22)) %>%
+  ggplot(aes(date, y+index, shape=testType, color=result)) +
   geom_text(aes(label=substr(testType, 1, 1)), size=3.5) +
-  facet_wrap(~patientId) +
+  scale_fill_gradient() +
   theme_bw()
 
