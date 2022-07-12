@@ -15,7 +15,7 @@ pdat <- tab %>% #tab %>%
 filtered_pdat <- pdat %>% 
   arrange(date) %>%
   group_by(patientId) %>%
-  mutate(y=ifelse(testType=='Molecular', 1, 350)) # spacing between A and M for same patient based on test type
+  mutate(y=ifelse(testType=='Molecular', 1, 1.25)) 
 
 filtered_pdat <- as.data.frame(filtered_pdat)
 filtered_pdat$index <- seq.int(nrow(filtered_pdat))
@@ -25,8 +25,6 @@ filtered_pdat <- transform(filtered_pdat,                                 # Crea
 split_data <- split(filtered_pdat, filtered_pdat$patientId)
 
 pairs = data.frame()
-
-p_index_counter = 1
 
 for (df in split_data) {
   for (numrow in 1:nrow(df)) {
@@ -44,23 +42,19 @@ for (df in split_data) {
       excludedRowDate <- patientDataExcludingCurrent[numrow_excluded, "date"]
       
       if ((excludedRowTestType != rowTestType & abs(difftime(rowDate, excludedRowDate, units='days')) <= 7)) {
-        df$patientIndex <- p_index_counter
-        patientDataExcludingCurrent$patientIndex <- p_index_counter
-        
         merged_df <- as.data.frame(rbind(patientDataExcludingCurrent[numrow_excluded,], df[numrow,]))
         
         pairs <- rbind(pairs, merged_df)
       }
     }
   }
-  p_index_counter = p_index_counter+150 # used to help space out each patient's data
 }
 
 pairs <- distinct(pairs)
 
 pairs %>%
   group_by(patientId) %>%
-  filter(patientIndex<=14000) %>%
+  filter(patientIndex<=100) %>%
   filter(date >= start_date) %>%
   ggplot(aes(date, y+(patientIndex), shape=testType, color=result, group=patientId)) +
   geom_text(aes(label=substr(testType, 1, 1)), size=5, position = position_dodge(width=.2), fontface='bold', family = "Arial", alpha=0.85) +
