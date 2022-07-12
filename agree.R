@@ -59,7 +59,7 @@ pairs <- pairs %>%
   mutate(y_val=y+patientIndex) %>%
   mutate(bottom=y_val-1, top=y_val+1)
 
-sampleNumber <- 50
+sampleNumber <- 60
 textSize <- 3
 
 pairs %>%
@@ -67,10 +67,9 @@ pairs %>%
   filter(patientIndex<=sampleNumber) %>%
   filter(date >= start_date) %>%
   ggplot(aes(date, y_val, shape=testType, color=result)) +
-  geom_hline(yintercept = seq.int(1, sampleNumber+1, 1.25), alpha=0.4, linetype='dotted') +
+  geom_hline(yintercept = seq.int(0.5, sampleNumber+1, 1), alpha=0.3, linetype='dotted') +
   geom_text(aes(label=substr(testType, 1, 1)), size=textSize, position = position_dodge(width=.2), fontface='bold') +
-  geom_text(aes(label=y_val), hjust=.4, vjust=-.4, size=2.5, color='black', fontface='bold') +
-  theme_bw()
+  theme_classic()
   
   
   
