@@ -52,11 +52,26 @@ for (df in split_data) {
 
 pairs <- distinct(pairs)
 
+pairs <- transform(pairs, patientIndex = as.numeric(factor(patientId)))
+
+pairs <- pairs %>%
+  group_by(patientId) %>%
+  mutate(y_val=y+patientIndex) %>%
+  mutate(bottom=y_val-1, top=y_val+1)
+
+sampleNumber <- 50
+textSize <- 3
+
 pairs %>%
   group_by(patientId) %>%
-  filter(patientIndex<=100) %>%
+  filter(patientIndex<=sampleNumber) %>%
   filter(date >= start_date) %>%
-  ggplot(aes(date, y+(patientIndex), shape=testType, color=result, group=patientId)) +
-  geom_text(aes(label=substr(testType, 1, 1)), size=5, position = position_dodge(width=.2), fontface='bold', family = "Arial", alpha=0.85) +
+  ggplot(aes(date, y_val, shape=testType, color=result)) +
+  geom_hline(yintercept = seq.int(1, sampleNumber+1, 1.25), alpha=0.4, linetype='dotted') +
+  geom_text(aes(label=substr(testType, 1, 1)), size=textSize, position = position_dodge(width=.2), fontface='bold') +
+  geom_text(aes(label=y_val), hjust=.4, vjust=-.4, size=2.5, color='black', fontface='bold') +
   theme_bw()
-
+  
+  
+  
+  
