@@ -20,7 +20,7 @@ filtered_pdat <- pdat %>%
 filtered_pdat <- as.data.frame(filtered_pdat)
 filtered_pdat$index <- seq.int(nrow(filtered_pdat))
 filtered_pdat <- transform(filtered_pdat,                                 # Create ID by group
-          patientIndex = as.numeric(factor(patientId))) # assign patient index by ID and x 5 to further separate each patient's data on plot
+                           patientIndex = as.numeric(factor(patientId))) # assign patient index by ID and x 5 to further separate each patient's data on plot
 
 split_data <- split(filtered_pdat, filtered_pdat$patientId)
 
@@ -50,6 +50,7 @@ for (df in split_data) {
   }
 }
 
+
 pairs <- distinct(pairs)
 
 pairs <- transform(pairs, patientIndex = as.numeric(factor(patientId)))
@@ -59,7 +60,7 @@ pairs <- pairs %>%
   mutate(y_val=y+patientIndex) %>%
   mutate(bottom=y_val-1, top=y_val+1)
 
-sampleNumber <- 60
+sampleNumber <- 50
 textSize <- 3
 
 pairs %>%
@@ -70,7 +71,3 @@ pairs %>%
   geom_hline(yintercept = seq.int(0.5, sampleNumber+1, 1), alpha=0.3, linetype='dotted') +
   geom_text(aes(label=substr(testType, 1, 1)), size=textSize, position = position_dodge(width=.2), fontface='bold') +
   theme_classic()
-  
-  
-  
-  

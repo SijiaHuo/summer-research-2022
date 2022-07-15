@@ -41,15 +41,50 @@ dat %>%
   facet_wrap(~region)
 
 
-dat %>% 
+dat %>%
   mutate(lower = qbinom(0.025, n7_AntigensSelfTest, p7_AntigensSelfTest)/n7_AntigensSelfTest,
          upper = qbinom(0.975, n7_AntigensSelfTest, p7_AntigensSelfTest)/n7_AntigensSelfTest) %>%
   ggplot(aes(date, p7_Molecular)) +
   geom_line() +
   geom_errorbar(aes(ymin=lower, ymax=upper), width = 0.5) +
   geom_point(aes(y=p7_AntigensSelfTest)) +
-  facet_wrap(~region)
+  scale_color_manual(values = colors) + 
+  facet_wrap(~region) 
+  
+dat %>% filter(region  %in% c("Metro", "Ponce")) %>%
+  mutate(lower = qbinom(0.025, n7_AntigensSelfTest, p7_AntigensSelfTest)/n7_AntigensSelfTest,
+         upper = qbinom(0.975, n7_AntigensSelfTest, p7_AntigensSelfTest)/n7_AntigensSelfTest) %>%
+  ggplot(aes(date, p7_Molecular, color = "Molecular")) +
+  geom_line() +
+  geom_errorbar(aes(ymin=lower, ymax=upper), width = 0.5, color = "black") +
+  geom_point(aes(y=p7_AntigensSelfTest, color = "Home Test")) +
+  scale_color_manual(values = colors) + 
+  facet_wrap(~region, ncol = 2) + labs(title = "Region Positive Rate", x = "Date", 
+                                       y = "Positive rate", color = "Type Test") +theme_bw()
 
+
+dat %>% filter(region  %in% c("Metro", "Ponce")) %>%
+  mutate(lower = qbinom(0.025, n7_AntigensSelfTest, p7_AntigensSelfTest)/n7_AntigensSelfTest,
+         upper = qbinom(0.975, n7_AntigensSelfTest, p7_AntigensSelfTest)/n7_AntigensSelfTest) %>%
+  ggplot(aes(date, p7_Molecular, color = "Molecular")) +
+  geom_line() +
+  geom_errorbar(aes(ymin=lower, ymax=upper), width = 0.5, color = "black") +
+  geom_point(aes(y=p7_AntigensSelfTest, color = "Home Test")) +
+  scale_color_manual(values = colors) + 
+  facet_wrap(~region, ncol = 2) + labs(title = "Region Positive Rate", x = "Date", 
+                                       y = "Positive rate", color = "Type Test") +theme_bw()
+
+
+dat %>% filter(region  %in% c("Mayagüez", "Caguas")) %>%
+  mutate(lower = qbinom(0.025, n7_AntigensSelfTest, p7_AntigensSelfTest)/n7_AntigensSelfTest,
+         upper = qbinom(0.975, n7_AntigensSelfTest, p7_AntigensSelfTest)/n7_AntigensSelfTest) %>%
+  ggplot(aes(date, p7_Molecular, color = "Molecular")) +
+  geom_line() +
+  geom_errorbar(aes(ymin=lower, ymax=upper), width = 0.5, color = "black") +
+  geom_point(aes(y=p7_AntigensSelfTest, color = "Home Test")) +
+  scale_color_manual(values = colors) + 
+  facet_wrap(~region, ncol = 2) + labs(title = "Region Positive Test Rate", x = "Date", 
+                                       y = "Positive test rate", color = "Type Test") +theme_bw()
 
 ## Also note that when lack of fit starts, jump in tests:
 
@@ -78,7 +113,6 @@ dat %>% filter(!region %in% c("No reportada")) %>%
 
 ## does a linear model help?
 
-
 fit <- glm(cbind(k7_Molecular, n7_Molecular) ~ p7_AntigensSelfTest, 
            family = "binomial", data = dat)
 
@@ -86,3 +120,21 @@ mutate(dat, p_hat = predict(fit, newdata = dat, type = "response")) %>%
   ggplot(aes(date, p7_Molecular)) +
   geom_point() +
   geom_line(aes(y=p_hat))
+
+dat5 = dat %>% group_by(ageRange) %>% filter(ageRange!="No reportada") %>%
+  summarize(r = cor.test(p7_Molecular, p7_AntigensSelfTest, method="pearson")$estimate,
+            p = cor.test(p7_Molecular, p7_AntigensSelfTest, method="pearson")$p.value,
+            c = cor.test(p7_Molecular, p7_AntigensSelfTest, method="pearson")$conf.int)
+
+
+dat %>% group_by(region) %>% filter(region!="No reportada") %>%
+  ggplot(aes(x = p7_Molecular, y = p7_AntigensSelfTest)) + 
+  geom_point() +
+  geom_smooth(method='lm', formula= y~x) +
+  stat_cor(method = "pearson", label.x = 0.1, label.y = 0.75) +
+  facet_wrap(~region)
+
+
+tab %>% group_by(region, testType) %>%
+  summarize(pos = sum(result == "positive"), n = n())
+

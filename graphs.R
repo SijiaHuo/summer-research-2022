@@ -1,11 +1,23 @@
+library(lubridate)
+
 # Positivity rate per day for each type of test
+colors = c("Sunday" = 1, "Monday" = 2, "Tuesday" = 3, "Wednesday" = 4,
+           "Thursday" = 5, "Friday" = 6, "Saturday" = 7)
+
 tab %>% group_by(testType, date) %>%
   filter(date>=make_date(2021,12,1)) %>%
   summarize(n=n(), pos = sum(result=="positive")) %>%
-  mutate(wday = wday(date)) %>%
+  mutate(wday = lubridate::wday(date,label=TRUE,abbr=FALSE)) %>%
   ggplot(aes(date, pos/n, color = as.factor(wday))) +
   geom_point() +
-  facet_wrap(~ testType, nrow = 2) 
+  facet_wrap(~ testType, ncol = 2) +
+  labs(title = "Positivity Rate by Test Type", x = "Date", y = "Positive rate",
+       color = "Days") + theme_bw()
+
+
+
+dates = as.Date("2022-07-08")
+lubridate::wday(dates, label = TRUE, abbr = FALSE)
 
 
 tab %>% group_by(testType, date) %>%
@@ -89,3 +101,26 @@ tab %>% group_by(date, testType) %>%  filter(date>=make_date(2021,12,1)) %>%
   ggplot(mapping = aes(x = testType, y = pos/n)) +
   geom_violin() +
   geom_boxplot(width = 0.1) 
+
+
+# Add dates to table 
+dat = as.data.table(dat) %>% 
+  mutate(date = as.Date(date)) %>% 
+  mutate(weekday = weekdays(date)) %>% 
+  dcast(date + n_AntigensSelfTest + n_Molecular + k_AntigensSelfTest + k_Molecular + 
+          k7_AntigensSelfTest + n7_AntigensSelfTest + k7_Molecular + n7_Molecular +
+          p_AntigensSelfTest + p7_AntigensSelfTest + p_Molecular + p7_Molecular 
+        ~ weekday, fun.aggregate = length)
+
+
+deaths %>% group_by(date) %>% filter(date>=make_date(2021,12,1)) %>%
+  summarize(Female = sum(CO_SEXO=="F"), Man = sum(CO_SEXO=="M"), total = n()) %>%
+  ggplot() +
+  geom_point(aes(date, Female), color = "red") +
+  geom_point(aes(date, Man), color = "blue")
+
+
+
+
+
+

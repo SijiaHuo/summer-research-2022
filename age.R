@@ -1,6 +1,7 @@
 library(tidyverse)
 library(lubridate)
-
+install.packages("scales")
+library("scales")
 # initializations
 
 cases_url <- "https://bioportal.salud.pr.gov/api/administration/reports/orders/basic"
@@ -22,7 +23,7 @@ the_years <- seq(2020, year(today()))
 age_starts <- c(0, 10, 15, 20, 30, 40, 65, 75)
 age_ends <- c(9, 14, 19, 29, 39, 64, 74, Inf)
 
-age_levels <- paste(age_starts, age_ends, sep = " a ")
+age_levels <- paste(age_starts, age_ends, sep = " to ")
 age_levels[length(age_levels)] <- paste0(age_starts[length(age_levels)],"+")
 
 imputation_delay  <- 2
@@ -124,7 +125,6 @@ dat %>%
   geom_errorbar(aes(ymin=lower, ymax=upper), width = 0.5) +
   geom_point(aes(y=p_AntigensSelfTest)) +
   facet_wrap(~ageRange)
-  
 
 dat %>% 
   mutate(lower = qbinom(0.025, n7_AntigensSelfTest, p7_AntigensSelfTest)/n7_AntigensSelfTest,
@@ -133,7 +133,31 @@ dat %>%
   geom_line() +
   geom_errorbar(aes(ymin=lower, ymax=upper), width = 0.5) +
   geom_point(aes(y=p7_AntigensSelfTest))  +
-  facet_wrap(~ageRange)
+  facet_wrap(~ageRange) 
+
+
+dat %>% filter(ageRange %in% c("20 to 29", "30 to 39")) %>%
+  mutate(lower = qbinom(0.025, n7_AntigensSelfTest, p7_AntigensSelfTest)/n7_AntigensSelfTest,
+         upper = qbinom(0.975, n7_AntigensSelfTest, p7_AntigensSelfTest)/n7_AntigensSelfTest) %>%
+  ggplot(aes(date, p7_Molecular, color = "Molecular")) +
+  geom_line() +
+  geom_errorbar(aes(ymin=lower, ymax=upper), width = 0.5, color = "black") +
+  geom_point(aes(y=p7_AntigensSelfTest, color = "Home Test"))  +
+  facet_wrap(~ageRange, ncol = 2) + scale_color_manual(values = colors) + 
+  labs(title = "Age Positive Test Rate", x = "Date", 
+                                     y = "Positive test rate", color = "Type Test") + theme_bw()
+
+dat %>% filter(ageRange %in% c("40 to 64", "65 to 74")) %>%
+  mutate(lower = qbinom(0.025, n7_AntigensSelfTest, p7_AntigensSelfTest)/n7_AntigensSelfTest,
+         upper = qbinom(0.975, n7_AntigensSelfTest, p7_AntigensSelfTest)/n7_AntigensSelfTest) %>%
+  ggplot(aes(date, p7_Molecular), color = "red") +
+  geom_line(color = "blue") +
+  geom_errorbar(aes(ymin=lower, ymax=upper), width = 0.5, color = "black") +
+  geom_point(aes(y=p7_AntigensSelfTest, color = "Home Test"))  +
+  facet_wrap(~ageRange, ncol = 2) + scale_color_manual(values = colors) + 
+  labs(title = "Age Positive Test Rate", x = "Date", 
+       y = "Positive test rate", color = "Type Test") + theme_bw()
+
 
 
 ## Also note that when lack of fit starts, jump in tests:
@@ -145,6 +169,7 @@ dat %>% filter(!ageRange %in% c("0 a 9", "10 a 14", "15 a 19", "No reportada")) 
   facet_wrap(~ageRange)
 
 
+ 
 ## excluding minors
 
 dat %>% filter(!ageRange %in% c("0 a 9", "10 a 14", "15 a 19", "No reportada")) %>%
@@ -164,13 +189,40 @@ dat %>% filter(!ageRange %in% c("0 a 9", "10 a 14", "15 a 19", "No reportada")) 
 
 
 
- ## does a linear model help?
+## does a linear model help?
 fit <- glm(cbind(k7_Molecular, n7_Molecular) ~ p7_AntigensSelfTest, family = "binomial", data = dat)
 
 mutate(dat, p_hat = predict(fit, newdata = dat, type = "response")) %>%
   ggplot(aes(date, p_Molecular)) +
   geom_point() +
   geom_line(aes(y=p_hat))
-  
 
 
+dat %>% filter(ageRange=="25 to 29") %>%
+  ggplot(aes(x = p7_Molecular, y = p7_AntigensSelfTest)) + 
+  geom_point() +
+  geom_smooth(method='lm', formula= y~x) +
+  stat_cor(method = "pearson", label.x = 0.1, label.y = 0.75)
+
+
+dat %>% group_by(ageRange) %>% filter(ageRange!="No reportada") %>%
+  ggplot(aes(x = p7_Molecular, y = p7_AntigensSelfTest)) + 
+  geom_point() +
+  geom_smooth(method='lm', formula= y~x) +
+  stat_cor(method = "pearson", label.x = 0.1, label.y = 0.75) +
+  facet_wrap(~ageRange)
+
+
+tab %>% group_by(ageRange) %>% filter(testType == "Molecular") %>%
+  summarize(n = n()) %>%
+  ggplot() +
+  geom_col(aes(ageRange, n), fill = "blue") +
+  scale_y_continuous(labels = comma) +
+  labs(title="Molecular Tests Performed by Age", x = "Age", y = "Number of Tests") + theme_bw()
+
+
+tab %>% group_by(ageRange) %>% filter(testType != "Molecular") %>%
+  summarize(n = n()) %>%
+  ggplot() +
+  geom_col(aes(ageRange, n), fill = "blue") +
+  labs(title="Home Tests Performed by Age", x = "Age", y = "Number of Tests") + theme_bw()

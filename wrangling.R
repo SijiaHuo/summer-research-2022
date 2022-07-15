@@ -82,5 +82,28 @@ tab <- tab %>%
 
 tab <- distinct(tab) ## distinct remove duplicat rows
 
+age_starts <- c(0, 10, 15, 20, 30, 40, 65, 75)
+age_ends <- c(9, 14, 19, 29, 39, 64, 74, Inf)
+
+
+url <- "https://covid19datos.salud.gov.pr/estadisticas_v2/download/data/defunciones/completo"
+deaths <-  read.csv(text = rawToChar(httr::content(httr::GET(url)))) %>% 
+  rename(ageRange = TX_GRUPO_EDAD, date = FE_MUERTE) %>%
+  mutate(date = as_date(ymd_hms(date, tz = "America/Puerto_Rico"))) %>%
+  mutate(age_start = as.numeric(str_extract(ageRange, "^\\d+")), 
+         age_end = as.numeric(str_extract(ageRange, "\\d+$"))) %>%
+  mutate(ageRange = age_levels[as.numeric(cut(age_start, c(age_starts, Inf), right = FALSE))]) %>%
+  mutate(ageRange = factor(ageRange, levels = age_levels)) 
+
+httr::set_config(httr::config(ssl_verifypeer = 0L, ssl_verifyhost = 0L))
+url <- "https://covid19datos.salud.gov.pr/estadisticas_v2/download/data/sistemas_salud/completo"
+hosp <- read.csv(text = rawToChar(httr::content(httr::GET(url)))) %>% 
+  mutate(date = as_date(FE_REPORTE)) %>%
+  filter(date >= first_day) %>%
+  arrange(date) 
 
 # wrangling ends ----------------------------------------
+
+tab %>% group_by(testType) %>%
+  summarize(pos = sum(result == "positive"), n = n())
+
