@@ -49,7 +49,11 @@ After plotting the daily positivity rate it was found that the data of both test
 
 To smoothen out the data, we calculated a rolling average using a seven-day window to better see the correlation between the two positivity rate trends. The data from December to February had a better correlation than any other time period shown. 
 
-![Plot Seven-Day Average](plots/7dayavg.png) **Figure 2**
+![Plot Seven-Day Average](plots/7dayavg.png)
+<p align="center">
+ <b>Figure 2</b>
+</p>
+
 
 In order to investigate potential covariates, we divided the data by age groups to perform a similar analysis. It was found that the correlation between the age ranges 23 to 28 and 30 to 39 was strong from December to February but then weakened afterward. This is likely due to a decrease in the number of home test results reported. 
 
