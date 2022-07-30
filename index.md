@@ -95,21 +95,21 @@ The first correlation was done between the months of December and February. This
  <img src="plots/corr1.png" width="600">
  <br>
  <b>Figure 7</b>
- </br>
+ 
 </p>
 
 <p align="center">
  <img src="plots/corr2.png" width="600">
  <br>
  <b>Figure 8</b>
- </br>
+ 
 </p>
 
 <p align="center">
  <img src="plots/corr3.png" width="600">
  <br>
  <b>Figure 9</b>
- </br>
+ 
 </p>
 
 
