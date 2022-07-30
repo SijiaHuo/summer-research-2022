@@ -1,6 +1,15 @@
 **Can Antigen Home Tests be Used for Population-Level COVID-19
 Surveillance?**
 
+**Members:**
+Michael H. Terrefortes Rosado, University of Puerto Rico ‘23 <br>
+Javlon Nizomov, University of Florida ‘24
+ 
+**Faculty Mentor:** Rafael Irizarry, Professor of Biostatistics, DFCI, HSPH <br>
+**Graduate Student Mentor:** Sijia Huo, HSPH
+
+
+
 ### Abstract
 
 COVID-19 is an infectious respiratory virus that has had a large impact on global health during the last 2 years. For this research project, we investigated if COVID-19 antigen home tests, which are much more economical than molecular tests, can be used for population-level COVID-19 surveillance. Molecular test results are used to inform the positivity rate in Puerto Rico. However, since December 2021, the Department of Health in Puerto Rico has allowed citizens to report their COVID-19 home test results. We studied both tests to find similarities in the daily and weekly trend of the positivity rate. In addition, we looked at age populations and certain time periods in order to find similar patterns between tests. Although not yet as reliable as molecular tests, we find that self-reported antigen home test results can potentially be used for COVID-19 surveillance.
