@@ -114,9 +114,17 @@ end
 <dd>Green</dd>
 </dl>
 
-```
-Long, single-line code blocks should not wrap. They should horizontally scroll if they are too long. This line should be long enough to demonstrate this.
-```
+### References
+
+
+El Nuevo Día. (2022, January 19). ¿Cómo registrar los resultados de las pruebas Caseras del Covid-19 en el Bioportal de Salud? El Nuevo Día. Retrieved from https://www.elnuevodia.com/noticias/locales/notas/como-registrar-los-resultados-de-las-pruebas-caseras-del-covid-19-en-el-bioportal-de-salud/ 
+
+Ledur, J. (2020, September 22). Test positivity: So valuable, so easy to misinterpret. The COVID Tracking Project. Retrieved from https://covidtracking.com/analysis-updates/test-positivity
+
+Molecular tests: Types of COVID-19 tests. COVID-19 Testing Toolkit. (2022, March 1). Retrieved from https://www.centerforhealthsecurity.org/covid-19TestingToolkit/testing-basics/types-of-COVID-19-tests/diagnostic-tests/molecular-tests.html
+
+Winny, A. (2020, November 2). What are all the different kinds of COVID-19 tests? Johns Hopkins Bloomberg School of Public Health. Retrieved from https://publichealth.jhu.edu/2020/what-are-all-the-different-kinds-of-covid-19-tests 
+
 
 ```
 The final element.
