@@ -44,8 +44,9 @@ After plotting the daily positivity rate it was found that the data of both test
 
 ![Plot Daily Average](plots/dailyAvg.png)
 <p align="center">
-    **Figure 1**
+ <b>Figure 1</b>
 </p>
+
 
 To smoothen out the data, we calculated a rolling average using a seven-day window to better see the correlation between the two positivity rate trends. The data from December to February had a better correlation than any other time period shown. 
 
@@ -57,30 +58,62 @@ To smoothen out the data, we calculated a rolling average using a seven-day wind
 
 In order to investigate potential covariates, we divided the data by age groups to perform a similar analysis. It was found that the correlation between the age ranges 23 to 28 and 30 to 39 was strong from December to February but then weakened afterward. This is likely due to a decrease in the number of home test results reported. 
 
-![Plot ages 23 to 28 and 30 to 39](plots/ageComp1.png) **Figure 3**
+![Plot ages 23 to 28 and 30 to 39](plots/ageComp1.png)
+<p align="center">
+ <b>Figure 3</b>
+</p>
+
 
 The correlation between the two tests increased for those 40 to 64 years old, but then weakened significantly for those 65 to 74 years old. This is because those in the older age group reported their test results less frequently.
 
-![Plot ages 40 to 64 and 65 to 74](plots/ageComp2.png) **Figure 4**
+![Plot ages 40 to 64 and 65 to 74](plots/ageComp2.png)
+<p align="center">
+ <b>Figure 4</b>
+</p>
+
 
 Then, we stratified the data by region to investigate how different regions compare. There were no observable differences between the positivity rate trends of different regions in Puerto Rico. Figure 5 shows Metro and Ponce.
 
-![Plot of Metro and Ponce](plots/region1.png) **Figure 5**
+![Plot of Metro and Ponce](plots/region1.png)
+<p align="center">
+ <b>Figure 5</b>
+</p>
+
 
 The same analysis was done for Caguas and Mayagüez in Figure 6 and there were no observable differences found.
 
-![Plot of Caguas and Mayaguez](plots/region2.png) **Figure 6**
+![Plot of Caguas and Mayaguez](plots/region2.png)
+<p align="center">
+ <b>Figure 6</b>
+</p>
+
 
 The first correlation was done between the months of December and February. This correlation was very good for the surveillance of COVID-19. The correlation had an R of 0.96, this is very good because it shows us how both test positivity rate is very similar in this time period. This can be seen in Figure 7. However, after this time period, the other two correlations did not have a good relationship. In Figure 8, the months of March and April had a correlation of R = 0.78. This means that the home tests should not be used for surveillance. Finally in Figure 9, from the months of May and June, the correlation performed worse than in the previous months and the R-value was 0.62. During this time period, it was seen a big increase in reported cases by citizens. 
 
-![Correlation Months December and January](plots/corr1.png) **Figure 7**
-![Correlation Months February and April](plots/corr2.png) **Figure 8**
-![Correlation Months May and June](plots/corr3.png) **Figure 9**
+![Correlation Months December and January](plots/corr1.png)
+<p align="center">
+ <b>Figure 7</b>
+</p>
+
+![Correlation Months February and April](plots/corr2.png)
+<p align="center">
+ <b>Figure 8</b>
+</p>
+
+![Correlation Months May and June](plots/corr3.png)
+<p align="center">
+ <b>Figure 9</b>
+</p>
+
 
 
 To see how well the two tests compared, we plotted paired test data for 60 patients, where each value on the y-axis shows a different patient’s testing history. The blue results indicate a positive result, while the red results indicate a negative result. Based on these results, we concluded that, in general, the two tests had similar results if they were conducted within a week of each other.
 
-![Agreement between tests and patients](plots/agree.png) **Figure 10**
+![Agreement between tests and patients](plots/agree.png)
+<p align="center">
+ <b>Figure 10</b>
+</p>
+
 
 ### Discussion
 
