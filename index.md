@@ -41,8 +41,10 @@ For our last analysis, we decided to measure how well the tests agree for specif
 
 After plotting the daily positivity rate it was found that the data of both tests follow a similar pattern. The home test data is more scattered in comparison to the molecular tests. Also, the antigen home test had some outliers because there is little testing being reported by citizens. For example, on a particular day, there were only two home tests performed and both were positive. Therefore, we decided to smooth the positivity rate by performing a rollmean average of seven days. Figure 1 shows the scatter plot of the daily positivity rate. 
 
+
+![Plot Daily Average](plots/dailyAvg.png)
 <p align="center">
-    ![Plot Daily Average](plots/dailyAvg.png) **Figure 1**
+    **Figure 1**
 </p>
 
 To smoothen out the data, we calculated a rolling average using a seven-day window to better see the correlation between the two positivity rate trends. The data from December to February had a better correlation than any other time period shown. 
