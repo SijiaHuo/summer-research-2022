@@ -90,19 +90,26 @@ The same analysis was done for Caguas and Mayagüez in Figure 6 and there were n
 
 The first correlation was done between the months of December and February. This correlation was very good for the surveillance of COVID-19. The correlation had an R of 0.96, this is very good because it shows us how both test positivity rate is very similar in this time period. This can be seen in Figure 7. However, after this time period, the other two correlations did not have a good relationship. In Figure 8, the months of March and April had a correlation of R = 0.78. This means that the home tests should not be used for surveillance. Finally in Figure 9, from the months of May and June, the correlation performed worse than in the previous months and the R-value was 0.62. During this time period, it was seen a big increase in reported cases by citizens. 
 
-![Correlation Months December and January](plots/corr1.png)
+
 <p align="center">
+ <img src="plots/corr1.png" width="600">
+ <br>
  <b>Figure 7</b>
+ </br>
 </p>
 
-![Correlation Months February and April](plots/corr2.png)
 <p align="center">
+ <img src="plots/corr2.png" width="600">
+ <br>
  <b>Figure 8</b>
+ </br>
 </p>
 
-![Correlation Months May and June](plots/corr3.png)
 <p align="center">
+ <img src="plots/corr3.png" width="600">
+ <br>
  <b>Figure 9</b>
+ </br>
 </p>
 
 
