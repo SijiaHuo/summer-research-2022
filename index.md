@@ -8,6 +8,8 @@ Javlon Nizomov, University of Florida ‘24
 **Faculty Mentor:** Rafael Irizarry, Professor of Biostatistics, DFCI, HSPH <br>
 **Graduate Student Mentor:** Sijia Huo, HSPH
 
+### Table of Contents
+
 * TOC
 {:toc}
 
