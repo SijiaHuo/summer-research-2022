@@ -1,0 +1,393 @@
+---
+title: "Can Antigen Home Tests be Used for Population-Level COVID-19 Surveillance?"
+author: "Michael H. Terrefortes Rosado, Javlon Nizomov"
+date: "2022-07-15"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+load(file="/Users/mterrefortes/Documents/CovidProject/tab.rda")
+library(tidyverse)
+library(lubridate)
+first_day <- make_date(2021,12,15)
+```
+
+Faculty Mentor: Rafael Irizarry, Professor of Biostatistics, DFCI, HSPH <br> Graduate Student Mentor: Sijia Huo, HSPH
+
+## Instructions
+
+To reproduce project download report.Rmd file and tab.rda. After this run the Rmd file
+
+## Abstract
+
+COVID-19 is an infectious respiratory virus that has had a large impact on global health during the last 2 years. For this research project, we investigated if COVID-19 antigen home tests, which are much more economical than molecular tests, can be used for population-level COVID-19 surveillance. Molecular test results are used to inform the positivity rate in Puerto Rico. However, since December 2021, the Department of Health in Puerto Rico has allowed citizens to report their COVID-19 home test results. We studied both tests to find similarities in the daily and weekly trend of the positivity rate. In addition, we looked at age populations and certain time periods in order to find similar patterns between tests. Although not yet as reliable as molecular tests, we find that self-reported antigen home test results can potentially be used for COVID-19 surveillance.
+
+## Introduction
+
+Can home tests be used as surveillance for COVID-19? Home tests have been reported since December 2021 in Puerto Rico. Home test reporting is important because it provides a way for researchers to measure the positivity rate and provide information to health officials who can take measures. Also, it informs citizens about what measures to take and gives hospitals time to prepare before surges in positive cases. Moreover, it can allow people to find other reliable ways to measure COVID-19 surges that are cheaper and more accessible; for example, using antigen self-tests.
+
+COVID-19 is easily transmissible via air particles and can cause long-term health problems in people who get the virus. Older people are at higher risk for the more severe symptoms of COVID-19, which can result in hospitalization and even death. Long COVID-19 is also becoming problematic, where people experience long-term effects of their infection. While there are different types of COVID-19 tests, for this project, we focused on molecular tests and antigen home tests.
+
+Molecular tests can be used to detect RNA or DNA. These types of tests are useful for detecting emerging diseases because they are quick to develop and use. Through this, they can detect the presence of COVID-19, even during the early stages of infection. Molecular tests are important because they detect the viral RNA that can accumulate to high levels within a cell before virus particles are created. Some of the limitations of these tests include being too expensive. Also, it can have a positive result long after you are infected because these molecular tests detect the DNA of the virus, which can stay in your body for weeks.
+
+Antigen home tests can detect proteins unique to the COVID-19 virus. Some of the benefits of using these tests include being easy to perform, cheap, and delivering results in a few minutes. However, the limitations are that it can miss newly-infected patients that have virus replicating in their cells that have not yet created measurable amounts of virus particles. Also, it detects a protein that is present with COVID-19 infection. Once the COVID-19 virus is no longer active, this protein will no longer get detected.
+
+## Method
+
+The methods used to perform the project are focused on the positivity rate of each test type. The positivity rate is the percentage of COVID-19 tests that are positive. This is not an estimate of the population that is infected. It is more likely for an infected person to get a test, so the population that gets tested is not representative. However, the positivity rate appears to follow the same trend as incidence which makes it a useful metric for surveillance. The positivity rate can be simply calculated by dividing the total number of positive cases by the total cases.
+
+We used data from the BioPortal database and to perform data analysis, we stratified the data into separate periods and looked at how well the data correlated. In addition, we stratified the data by region and age group to see how the home tests behave compared to the molecular tests. Pearson correlation was used to measure the correlation between the two tests for different periods in time.
+
+For our last analysis, we decided to measure how well the tests agree for specific patients. By gathering all the tests done for each patient ID and creating pairs for tests done within a week, we were able to create a plot that allowed us to make conclusions about how well the antigen and molecular test results agreed with each other if conducted within a seven-day window.
+
+## Results
+
+After plotting the daily positivity rate it was found that the data of both tests follow a similar pattern. The home test data is more scattered in comparison to the molecular tests. Also, the antigen home test had some outliers because there is little testing being reported by citizens. For example, on a particular day, there were only two home tests performed and both were positive. Therefore, we decided to smooth the positivity rate by performing a rollmean average of seven days. Figure 1 shows the scatter plot of the daily positivity rate.
+
+```{r positivity rate, fig.width = 10}
+
+# Positivity rate per day for each type of test
+# Days of week
+colors = c("Sunday" = 1, "Monday" = 2, "Tuesday" = 3, "Wednesday" = 4,
+           "Thursday" = 5, "Friday" = 6, "Saturday" = 7)
+
+# Positivity rate per day for each type of test plot
+tab %>% group_by(testType, date) %>%
+  filter(date>=make_date(2021,12,1)) %>%
+  summarize(n=n(), pos = sum(result=="positive")) %>%
+  mutate(wday = lubridate::wday(date,label=TRUE,abbr=FALSE)) %>%
+  ggplot(aes(date, pos/n, color = as.factor(wday))) +
+  geom_point() +
+  facet_wrap(~ testType, ncol = 2) +
+  labs(title = "Positivity Rate by Test Type", x = "Date", y = "Positive rate",
+       color = "Days") + theme_bw()
+```
+
+To smoothen out the data, we calculated a rolling average using a seven-day window to better see the correlation between the two positivity rate trends. The data from December to February had a better correlation than any other time period shown.
+
+```{r 7 day avg, fig.width = 10}
+# Color tests for plot
+colors = c("Molecular" = "blue", "Home Test" = "red")
+
+# Create data frame with dates, number of performed tests, positive tests, positivity rate,
+# 7 day total tests, 7 day positive tests, 7 avg positivity rate per test
+dat <- tab %>% 
+  filter(date >= result %in% c("positive", "negative") & date>=first_day) %>%
+  group_by(testType, date) %>%
+  summarize(k = sum(result=="positive"),
+            n = n(), .groups = "drop") %>% 
+  select(testType, date, n, k) %>%
+  pivot_wider(names_from=testType, values_from = c(n, k)) %>% 
+  mutate(k7_AntigensSelfTest = zoo::rollsum(k_AntigensSelfTest, 7, align = "right", na.pad = TRUE),
+         n7_AntigensSelfTest = zoo::rollsum(n_AntigensSelfTest, 7, align = "right", na.pad = TRUE)) %>%
+  mutate(k7_Molecular = zoo::rollsum(k_Molecular, 7, align = "right", na.pad = TRUE),
+         n7_Molecular = zoo::rollsum(n_Molecular, 7, align = "right", na.pad = TRUE)) %>%
+  mutate(p_AntigensSelfTest = k_AntigensSelfTest / n_AntigensSelfTest,
+         p7_AntigensSelfTest = k7_AntigensSelfTest / n7_AntigensSelfTest,
+         p_Molecular = k_Molecular / n_Molecular,
+         p7_Molecular = k7_Molecular / n7_Molecular)  
+
+# Plot both molecular and home test positivity rate
+dat %>% 
+  mutate(lower = qbinom(0.025, n7_AntigensSelfTest, p7_AntigensSelfTest)/n7_AntigensSelfTest,
+         upper = qbinom(0.975, n7_AntigensSelfTest, p7_AntigensSelfTest)/n7_AntigensSelfTest) %>%
+  ggplot(aes(date, p7_Molecular, color = "Molecular")) +
+  geom_line() +
+  geom_errorbar(aes(ymin=lower, ymax=upper, color = "black"), width = 0.5) +
+  geom_point(aes(y=p7_AntigensSelfTest, color = "Home Test")) + 
+  ggtitle("Molecular and Home Tests Positivity Rate") +
+  scale_color_manual(values = colors) + 
+  labs(x = "Date", y = "7 day Molecular and Home Test Positivity Rate", color = "Test Type") +
+  theme_bw()
+```
+
+In order to investigate potential covariates, we divided the data by age groups to perform a similar analysis. It was found that the correlation between the age ranges 23 to 28 and 30 to 39 was strong from December to February but then weakened afterward. This is likely due to a decrease in the number of home test results reported.
+
+```{r age positivity rate, fig.width = 10, fig.height = 10}
+
+# Stratify by age
+xx <- tab %>% group_by(testType, patientId) %>%
+  slice(1)
+
+## data for plot
+dat <- xx %>% #tab %>% 
+  filter(date >= result %in% c("positive", "negative") & date>=first_day) %>%
+  group_by(testType, date, ageRange) %>%
+  summarize(k = sum(result=="positive"),
+            n = n(), .groups = "drop") %>% 
+  select(ageRange, testType, date, n, k) %>%
+  pivot_wider(names_from=testType, values_from = c(n, k)) %>% 
+  group_by(ageRange) %>%
+  mutate(k7_AntigensSelfTest = zoo::rollsum(k_AntigensSelfTest, 7, align = "right", na.pad = TRUE),
+         n7_AntigensSelfTest = zoo::rollsum(n_AntigensSelfTest, 7, align = "right", na.pad = TRUE)) %>%
+  mutate(k7_Molecular = zoo::rollsum(k_Molecular, 7, align = "right", na.pad = TRUE),
+         n7_Molecular = zoo::rollsum(n_Molecular, 7, align = "right", na.pad = TRUE)) %>%
+  ungroup() %>%
+  mutate(p_AntigensSelfTest = k_AntigensSelfTest / n_AntigensSelfTest,
+         p7_AntigensSelfTest = k7_AntigensSelfTest / n7_AntigensSelfTest,
+         p_Molecular = k_Molecular / n_Molecular,
+         p7_Molecular = k7_Molecular / n7_Molecular)  
+
+# Plot positivty rate of both tests by age
+dat %>%
+  mutate(lower = qbinom(0.025, n7_AntigensSelfTest, p7_AntigensSelfTest)/n7_AntigensSelfTest,
+         upper = qbinom(0.975, n7_AntigensSelfTest, p7_AntigensSelfTest)/n7_AntigensSelfTest) %>%
+  ggplot(aes(date, p7_Molecular, color = "Molecular")) +
+  geom_line() +
+  geom_errorbar(aes(ymin=lower, ymax=upper), width = 0.5, color = "black") +
+  geom_point(aes(y=p7_AntigensSelfTest, color = "Home Test"))  +
+  facet_wrap(~ageRange, ncol = 2) + scale_color_manual(values = colors) + 
+  labs(title = "Age Positive Test Rate", x = "Date", 
+       y = "Positive test rate", color = "Type Test") + theme_bw()
+
+
+```
+
+```{r age1, fig.width = 10}
+# Plot positivty rate of both tests by ages 20-39 and 30-39
+dat %>% filter(ageRange %in% c("20 to 29", "30 to 39")) %>%
+  mutate(lower = qbinom(0.025, n7_AntigensSelfTest, p7_AntigensSelfTest)/n7_AntigensSelfTest,
+         upper = qbinom(0.975, n7_AntigensSelfTest, p7_AntigensSelfTest)/n7_AntigensSelfTest) %>%
+  ggplot(aes(date, p7_Molecular, color = "Molecular")) +
+  geom_line() +
+  geom_errorbar(aes(ymin=lower, ymax=upper), width = 0.5, color = "black") +
+  geom_point(aes(y=p7_AntigensSelfTest, color = "Home Test"))  +
+  facet_wrap(~ageRange, ncol = 2) + scale_color_manual(values = colors) + 
+  labs(title = "Age Positive Test Rate", x = "Date", 
+                                     y = "Positive test rate", color = "Type Test") + theme_bw()
+
+```
+
+The correlation between the two tests increased for those 40 to 64 years old, but then weakened significantly for those 65 to 74 years old. This is because those in the older age group reported their test results less frequently.
+
+```{r age2 positivity rate, fig.width = 10}
+# Plot positivty rate of both tests by ages 40-64 and 65-74
+dat %>% filter(ageRange %in% c("40 to 64", "65 to 74")) %>%
+  mutate(lower = qbinom(0.025, n7_AntigensSelfTest, p7_AntigensSelfTest)/n7_AntigensSelfTest,
+         upper = qbinom(0.975, n7_AntigensSelfTest, p7_AntigensSelfTest)/n7_AntigensSelfTest) %>%
+  ggplot(aes(date, p7_Molecular), color = "red") +
+  geom_line(color = "blue") +
+  geom_errorbar(aes(ymin=lower, ymax=upper), width = 0.5, color = "black") +
+  geom_point(aes(y=p7_AntigensSelfTest, color = "Home Test"))  +
+  facet_wrap(~ageRange, ncol = 2) + scale_color_manual(values = colors) + 
+  labs(title = "Age Positive Test Rate", x = "Date", 
+       y = "Positive test rate", color = "Type Test") + theme_bw()
+```
+
+Then, we stratified the data by region to investigate how different regions compare. There were no observable differences between the positivity rate trends of different regions in Puerto Rico. Figure 5 shows Metro and Ponce.
+
+```{r region, fig.width = 10, fig.height=10}
+
+# data for plot by region
+dat <- tab %>% 
+  filter(date >= result %in% c("positive", "negative") & date>=first_day) %>%
+  group_by(testType, date, region) %>%
+  summarize(k = sum(result=="positive"),
+            n = n(), .groups = "drop") %>% 
+  select(region, testType, date, n, k) %>%
+  pivot_wider(names_from=testType, values_from = c(n, k)) %>% 
+  mutate(k7_AntigensSelfTest = zoo::rollsum(k_AntigensSelfTest, 7, align = "right", na.pad = TRUE),
+         n7_AntigensSelfTest = zoo::rollsum(n_AntigensSelfTest, 7, align = "right", na.pad = TRUE)) %>%
+  mutate(k7_Molecular = zoo::rollsum(k_Molecular, 7, align = "right", na.pad = TRUE),
+         n7_Molecular = zoo::rollsum(n_Molecular, 7, align = "right", na.pad = TRUE)) %>%
+  mutate(p_AntigensSelfTest = k_AntigensSelfTest / n_AntigensSelfTest,
+         p7_AntigensSelfTest = k7_AntigensSelfTest / n7_AntigensSelfTest,
+         p_Molecular = k_Molecular / n_Molecular,
+         p7_Molecular = k7_Molecular / n7_Molecular)  
+
+# plot positivity rate of each test by region
+dat %>%
+  mutate(lower = qbinom(0.025, n7_AntigensSelfTest, p7_AntigensSelfTest)/n7_AntigensSelfTest,
+         upper = qbinom(0.975, n7_AntigensSelfTest, p7_AntigensSelfTest)/n7_AntigensSelfTest) %>%
+  ggplot(aes(date, p7_Molecular, color = "Molecular")) +
+  geom_line() +
+  geom_errorbar(aes(ymin=lower, ymax=upper), width = 0.5, color = "black") +
+  geom_point(aes(y=p7_AntigensSelfTest, color = "Home Test")) +
+  scale_color_manual(values = colors) + 
+  facet_wrap(~region, ncol = 2) + labs(title = "Region Positive Rate", x = "Date", 
+                                       y = "Positive rate", color = "Type Test") +theme_bw()
+
+
+```
+
+```{r region1}
+
+# plot positivity rate of regions Metro and Ponce
+dat %>% filter(region  %in% c("Metro", "Ponce")) %>%
+  mutate(lower = qbinom(0.025, n7_AntigensSelfTest, p7_AntigensSelfTest)/n7_AntigensSelfTest,
+         upper = qbinom(0.975, n7_AntigensSelfTest, p7_AntigensSelfTest)/n7_AntigensSelfTest) %>%
+  ggplot(aes(date, p7_Molecular, color = "Molecular")) +
+  geom_line() +
+  geom_errorbar(aes(ymin=lower, ymax=upper), width = 0.5, color = "black") +
+  geom_point(aes(y=p7_AntigensSelfTest, color = "Home Test")) +
+  scale_color_manual(values = colors) + 
+  facet_wrap(~region, ncol = 2) + labs(title = "Region Positive Rate", x = "Date", 
+                                       y = "Positive rate", color = "Type Test") +theme_bw()
+
+```
+
+The same analysis was done for Caguas and Mayagüez in Figure 6 and there were no observable differences found.
+
+```{r region2, fig.width = 10}
+
+# plot positivity rate of regions Mayagüez and Caguas
+dat %>% filter(region  %in% c("Mayagüez", "Caguas")) %>%
+  mutate(lower = qbinom(0.025, n7_AntigensSelfTest, p7_AntigensSelfTest)/n7_AntigensSelfTest,
+         upper = qbinom(0.975, n7_AntigensSelfTest, p7_AntigensSelfTest)/n7_AntigensSelfTest) %>%
+  ggplot(aes(date, p7_Molecular, color = "Molecular")) +
+  geom_line() +
+  geom_errorbar(aes(ymin=lower, ymax=upper), width = 0.5, color = "black") +
+  geom_point(aes(y=p7_AntigensSelfTest, color = "Home Test")) +
+  scale_color_manual(values = colors) + 
+  facet_wrap(~region, ncol = 2) + labs(title = "Region Positive Test Rate", x = "Date", 
+                                       y = "Positive test rate", color = "Type Test") +theme_bw()
+```
+
+The first correlation was done between the months of December and February. This correlation was very good for the surveillance of COVID-19. The correlation had an R of 0.96, this is very good because it shows us how both test positivity rate is very similar in this time period. This can be seen in Figure 7. However, after this time period, the other two correlations did not have a good relationship. In Figure 8, the months of March and April had a correlation of R = 0.78. This means that the home tests should not be used for surveillance. Finally in Figure 9, from the months of May and June, the correlation performed worse than in the previous months and the R-value was 0.62. During this time period, it was seen a big increase in reported cases by citizens.
+
+```{r correlation}
+
+# data for correlation
+dat <- tab %>% 
+  filter(date >= result %in% c("positive", "negative") & date>=first_day) %>%
+  group_by(testType, date) %>%
+  summarize(k = sum(result=="positive"),
+            n = n(), .groups = "drop") %>% 
+  select(testType, date, n, k) %>%
+  pivot_wider(names_from=testType, values_from = c(n, k)) %>% 
+  mutate(k7_AntigensSelfTest = zoo::rollsum(k_AntigensSelfTest, 7, align = "right", na.pad = TRUE),
+         n7_AntigensSelfTest = zoo::rollsum(n_AntigensSelfTest, 7, align = "right", na.pad = TRUE)) %>%
+  mutate(k7_Molecular = zoo::rollsum(k_Molecular, 7, align = "right", na.pad = TRUE),
+         n7_Molecular = zoo::rollsum(n_Molecular, 7, align = "right", na.pad = TRUE)) %>%
+  mutate(p_AntigensSelfTest = k_AntigensSelfTest / n_AntigensSelfTest,
+         p7_AntigensSelfTest = k7_AntigensSelfTest / n7_AntigensSelfTest,
+         p_Molecular = k_Molecular / n_Molecular,
+         p7_Molecular = k7_Molecular / n7_Molecular)  
+
+
+## Correlations
+dat %>% filter(date>=make_date(2021,12,1) & date<make_date(2022,3,1)) %>%
+  ggplot(aes(x = p7_Molecular, y = p7_AntigensSelfTest)) + 
+  geom_point() +
+  geom_abline() +
+  geom_smooth(method='lm', formula= y~x) +
+  # stat_cor(method = "pearson", label.x = 0.05, label.y = 0.3) +
+  labs(title="Correlation Between Tests from December to February", 
+       x = "Molecular 7 day avg", y = "Home test 7 day avg") + theme_bw() + xlim(0,0.4) + ylim(0,0.4)
+
+dat %>% filter(date>=make_date(2022,3,1) & date<make_date(2022,5,1)) %>%
+  ggplot(aes(x = p7_Molecular, y = p7_AntigensSelfTest)) + 
+  geom_point() +
+  geom_abline() +
+  geom_smooth(method='lm', formula= y~x) +
+  # stat_cor(method = "pearson", label.x = 0.2, label.y = 0.1) +
+  labs(title="Correlation Between Tests from March to April", 
+  x = "Molecular 7 day avg", y = "Home test 7 day avg") + theme_bw() + xlim(0,0.4) + ylim(0,0.4)
+
+
+dat %>% filter(date>=make_date(2022,5,1) & date<make_date(2022,7,1)) %>%
+  ggplot(aes(x = p7_Molecular, y = p7_AntigensSelfTest)) + 
+  geom_point() +
+  geom_abline() +
+  geom_smooth(method='lm', formula= y~x) +
+  # stat_cor(method = "pearson", label.x = 0.4, label.y = 0.3) +
+  labs(title="Correlation Between Tests from May to June", 
+       x = "Molecular 7 day avg", y = "Home test 7 day avg") + theme_bw() + xlim(0.2,0.6) + ylim(0.2,0.6)
+
+```
+
+To see how well the two tests compared, we plotted paired test data for 60 patients, where each value on the y-axis shows a different patient's testing history. The blue results indicate a positive result, while the red results indicate a negative result. Based on these results, we concluded that, in general, the two tests had similar results if they were conducted within a week of each other.
+
+```{r agreement, fig.width = 11, fig.height=11}
+
+start_date <- make_date(2021, 12, 15)
+
+pdat <- tab %>% #tab %>% 
+  filter(result %in% c("positive", "negative")) %>%
+  group_by(testType, date) %>%
+  summarize(k = sum(result=="positive"),
+            n = n(), patientId = patientId, result = result, .groups = "drop") %>%
+  ungroup() %>%
+  group_by(patientId) %>%
+  filter(length(unique(testType))!=1) #gets rid of patients who have data on the same test type (no comparisons possible)
+
+filtered_pdat <- pdat %>% 
+  arrange(date) %>%
+  group_by(patientId) %>%
+  mutate(y=ifelse(testType=='Molecular', 1, 1.25)) 
+
+filtered_pdat <- as.data.frame(filtered_pdat)
+filtered_pdat$index <- seq.int(nrow(filtered_pdat))
+filtered_pdat <- transform(filtered_pdat,                                 # Create ID by group
+                           patientIndex = as.numeric(factor(patientId))) # assign patient index by ID and x 5 to further separate each patient's data on plot
+
+split_data <- split(filtered_pdat, filtered_pdat$patientId)
+
+pairs = data.frame()
+
+for (df in split_data) {
+  for (numrow in 1:nrow(df)) {
+    rowTestType <- df[numrow,"testType"]
+    rowResult  <- df[numrow, "result"]
+    rowIndex  <- df[numrow, "index"]
+    rowDate  <- df[numrow, "date"]
+    
+    patientDataExcludingCurrent <- filter(df, index!=rowIndex)
+    
+    for (numrow_excluded in 1:nrow(patientDataExcludingCurrent)) {
+      excludedRowTestType <- patientDataExcludingCurrent[numrow_excluded,"testType"]
+      excludedRowResult  <- patientDataExcludingCurrent[numrow_excluded, "result"]
+      excludedRowIndex  <- patientDataExcludingCurrent[numrow_excluded, "index"]
+      excludedRowDate <- patientDataExcludingCurrent[numrow_excluded, "date"]
+      
+      if ((excludedRowTestType != rowTestType & abs(difftime(rowDate, excludedRowDate, units='days')) <= 7)) {
+        merged_df <- as.data.frame(rbind(patientDataExcludingCurrent[numrow_excluded,], df[numrow,]))
+        
+        pairs <- rbind(pairs, merged_df)
+      }
+    }
+  }
+}
+
+
+pairs <- distinct(pairs)
+
+pairs <- transform(pairs, patientIndex = as.numeric(factor(patientId)))
+
+pairs <- pairs %>%
+  group_by(patientId) %>%
+  mutate(y_val=y+patientIndex) %>%
+  mutate(bottom=y_val-1, top=y_val+1)
+
+sampleNumber <- 50
+textSize <- 3
+
+pairs %>%
+  group_by(patientId) %>%
+  filter(patientIndex<=sampleNumber) %>%
+  filter(date >= start_date) %>%
+  ggplot(aes(date, y_val, shape=testType, color=result)) +
+  geom_hline(yintercept = seq.int(0.5, sampleNumber+1, 1), alpha=0.3, linetype='dotted') +
+  geom_text(aes(label=substr(testType, 1, 1)), size=textSize, position = position_dodge(width=.2), fontface='bold') +
+  theme_classic()
+
+```
+
+## Discussion
+
+We found that for certain time periods, and ages both tests agreed on the positivity rate in Puerto Rico. One limitation of our study included being limited to data from the Department of Health in Puerto Rico. This means that our findings may not be applicable to other regions of the world. Another limitation is that there were few home test results reported and this may have affected the trends in the graphs. This also led us to omit molecular home test results since there was not enough data from them. Furthermore, the positivity rate is not entirely representative of those who are infected because it is more likely for an infected person to get a test.
+
+## Conclusion
+
+Based on the plots, we found that the positivity rate appears to follow the same trend as incidence which makes it a useful metric for surveillance. This shows that home tests do have the potential to be used for COVID-19 surveillance. We encourage citizens to report their home test results so that the database can expand and allow for a more in-depth analysis in the future. However, since there was a limitation with having few home test results reported, further research is warranted.
+
+## References
+
+El Nuevo Día. (2022, January 19). ¿Cómo registrar los resultados de las pruebas Caseras del Covid-19 en el Bioportal de Salud? El Nuevo Día. Retrieved from <https://www.elnuevodia.com/noticias/locales/notas/como-registrar-los-resultados-de-las-pruebas-caseras-del-covid-19-en-el-bioportal-de-salud/> 
+<br><br>
+Ledur, J. (2020, September 22). Test positivity: So valuable, so easy to misinterpret. The COVID Tracking Project. Retrieved from <https://covidtracking.com/analysis-updates/test-positivity> 
+<br><br>
+Molecular tests: Types of COVID-19 tests. COVID-19 Testing Toolkit. (2022, March 1). Retrieved from <https://www.centerforhealthsecurity.org/covid-19TestingToolkit/testing-basics/types-of-COVID-19-tests/diagnostic-tests/molecular-tests.html> 
+<br><br>
+Winny, A. (2020, November 2). What are all the different kinds of COVID-19 tests? Johns Hopkins Bloomberg School of Public Health. Retrieved from <https://publichealth.jhu.edu/2020/what-are-all-the-different-kinds-of-covid-19-tests>
