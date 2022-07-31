@@ -1,4 +1,4 @@
-### Can Antigen Home Tests be Used for Population-Level COVID-19 Surveillance?
+**Can Antigen Home Tests be Used for Population-Level COVID-19 Surveillance?**
 
 **Members:** <br>
 Michael H. Terrefortes Rosado, University of Puerto Rico ‘23 <br>
@@ -7,7 +7,7 @@ Javlon Nizomov, University of Florida ‘24
 **Faculty Mentor:** Rafael Irizarry, Professor of Biostatistics, DFCI, HSPH <br>
 **Graduate Student Mentor:** Sijia Huo, HSPH
 
-## Table of Contents
+### Table of Contents
 
 * TOC
 {:toc}
