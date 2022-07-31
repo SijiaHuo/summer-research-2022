@@ -1,4 +1,4 @@
-## Can Antigen Home Tests be Used for Population-Level COVID-19 Surveillance?
+### Can Antigen Home Tests be Used for Population-Level COVID-19 Surveillance?
 
 **Members:** <br>
 Michael H. Terrefortes Rosado, University of Puerto Rico ‘23 <br>
